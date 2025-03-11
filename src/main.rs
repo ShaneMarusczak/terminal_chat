@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
-    let mut session = Session { messages: vec![] };
+    let mut conversation_context = ConversationContext::new();
 
     let dev_message = Message {
         role: String::from("developer"),
@@ -17,13 +17,10 @@ async fn main() -> Result<(), reqwest::Error> {
                 Always answer with very accurate and kind responses that are short, to the point and friendly."
             .to_owned(),
     };
-
-    session.messages.push(dev_message.clone());
+    conversation_context.messages.push(dev_message.clone());
 
     let client = reqwest::Client::new();
-
     let url = "https://api.openai.com/v1/chat/completions";
-
     let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
 
     loop {
@@ -35,30 +32,31 @@ async fn main() -> Result<(), reqwest::Error> {
             match stripped {
                 "q" => break,
                 "clear" => {
-                    session.messages.clear();
-                    session.messages.push(dev_message.clone());
-                    println!("Session cleared.");
+                    conversation_context.messages.clear();
+                    conversation_context.messages.push(dev_message.clone());
+                    println!("\nConversation cleared.\n");
                 }
                 "debug" => {
-                    println!("Debugging session messages:");
-                    for message in &session.messages {
+                    println!("\nDebugging conversation messages:");
+                    for message in &conversation_context.messages {
                         println!("{}: {}", message.role, message.content);
                     }
+                    println!();
                 }
-                _ => continue,
+                _ => {
+                    eprintln!("\nInvalid command: {}\n", stripped);
+                }
             }
         } else {
             let user_message = Message {
                 role: String::from("user"),
                 content: line.clone(),
             };
-            session.messages.push(user_message);
+            conversation_context.messages.push(user_message);
 
-            let request = make_request(&session);
+            let request_as_json = serde_json::to_string(&conversation_context).unwrap();
 
-            let request_as_json = serde_json::to_string(&request).unwrap();
-
-            let test = client
+            let response = client
                 .post(url)
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", api_key))
@@ -68,19 +66,20 @@ async fn main() -> Result<(), reqwest::Error> {
                 .text()
                 .await?;
 
-            let response_data: Response = serde_json::from_str(&test).unwrap();
+            let response_data: Response = serde_json::from_str(&response).unwrap();
 
             if let Some(choice) = response_data.choices.first() {
                 let content = &choice.message.content;
                 let ai_message = Message {
                     role: String::from("assistant"),
-                    content: String::from(content),
+                    content: content.to_owned(),
                 };
-                session.messages.push(ai_message);
-                println!("{}", content);
+                conversation_context.messages.push(ai_message);
+                println!("\n{}\n", content);
             }
         }
     }
+
     Ok(())
 }
 
@@ -98,28 +97,6 @@ fn get_text_input(msg: &str) -> String {
     }
 }
 
-fn make_request(session: &Session) -> Request {
-    let mut request = Request {
-        model: String::new(),
-        messages: vec![],
-    };
-
-    request.model = String::from("gpt-4o");
-
-    for message in session.messages.clone() {
-        request.messages.push(Message {
-            role: message.role,
-            content: message.content.clone(),
-        });
-    }
-
-    request
-}
-
-struct Session {
-    messages: Vec<Message>,
-}
-
 #[derive(serde::Serialize, Deserialize, Clone, Debug)]
 struct Message {
     role: String,
@@ -127,9 +104,18 @@ struct Message {
 }
 
 #[derive(serde::Serialize, Debug)]
-struct Request {
+struct ConversationContext {
     model: String,
     messages: Vec<Message>,
+}
+
+impl ConversationContext {
+    fn new() -> Self {
+        ConversationContext {
+            model: String::from("gpt-4o"),
+            messages: Vec::new(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
