@@ -805,12 +805,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
-name = "print_typewriter"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0880983da3c27eb40b88c356c79645cec75eb818d3f0ee54c3fed8c715350ac6"
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1201,7 +1195,6 @@ dependencies = [
 name = "terminal_chat"
 version = "0.1.0"
 dependencies = [
- "print_typewriter",
  "reqwest",
  "rustyline",
  "serde",

@@ -6,7 +6,6 @@ use std::{
     },
 };
 
-use print_typewriter::{char_duration, println_typed};
 use rustyline::error::ReadlineError;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, sleep};
@@ -84,10 +83,8 @@ Always answer with very accurate and kind responses that are short, to the point
                             role: "assistant".into(),
                             content: content.to_owned(),
                         });
-                        // Set the typing speed (e.g., 50 milliseconds per character)
-                        let typing_speed = char_duration!(default 15.ms);
                         println!();
-                        println_typed!(typing_speed, "{}", content);
+                        println!("{}", content);
                         println!();
                     }
                 }
