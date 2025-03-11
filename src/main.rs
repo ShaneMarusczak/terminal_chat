@@ -115,7 +115,15 @@ fn start_spinner() -> (Arc<AtomicBool>, tokio::task::JoinHandle<()>) {
     let spinner_running = Arc::new(AtomicBool::new(true));
     let spinner_flag = spinner_running.clone();
     let handle = tokio::spawn(async move {
-        let spinner_states = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let spinner_states = [
+            "└[-   ]┐",
+            "┌[ -  ]┘",
+            "└[  - ]┐",
+            "┌[   -]┘",
+            "└[  - ]┐",
+            "┌[ -  ]┘",
+            "└[-   ]┐",
+        ];
         let mut i = 0;
         while spinner_flag.load(Ordering::Relaxed) {
             print!(
