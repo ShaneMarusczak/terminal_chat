@@ -154,7 +154,7 @@ impl ChatClient {
                 "You are a conversation distiller. Your job is to look at the following conversation
 and create a well formed document about the topics in the conversation. Do not talk about the
 people in the conversations, or that it is a conversation. Extract the meaning and data of
-the conversation and put it into a well formed report"
+the conversation and put it into a well formed report. If there is code, please put it in the report."
                     .into(),
         };
         new_context.messages.push(dev_message);
@@ -165,7 +165,7 @@ the conversation and put it into a well formed report"
         }
         let response = self.send_request(&new_context).await?;
         if let Some(choice) = response.choices.first() {
-            println!("{}", choice.message.content);
+            println!("\n{}\n", choice.message.content);
         }
         Ok(())
     }
