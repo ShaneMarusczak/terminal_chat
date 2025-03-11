@@ -10,25 +10,45 @@ use rustyline::error::ReadlineError;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, sleep};
 
+#[derive(Debug)]
+enum Command {
+    Quit,
+    Clear,
+    Debug,
+    Doc,
+    Unknown(String),
+}
+
+fn parse_command(input: &str) -> Command {
+    match input.trim_start_matches(':').trim() {
+        "q" => Command::Quit,
+        "clear" => Command::Clear,
+        "debug" => Command::Debug,
+        "doc" => Command::Doc,
+        other => Command::Unknown(other.to_string()),
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
     println!("\n  -- terminal chat -- \n");
 
     let mut conversation_context = ConversationContext::new();
-    let dev_message = Message {
+    let developer_message = Message {
         role: "developer".into(),
         content: "You are helpful, intelligent, and friendly.
 You are also very concise and accurate.
 No words are wasted in your responses.
 Always answer with very accurate and kind responses that are short, to the point and friendly."
-            .to_owned(),
+            .into(),
     };
-    conversation_context.messages.push(dev_message.clone());
-    let client = reqwest::Client::new();
-    let url = "https://api.openai.com/v1/chat/completions";
-    let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+    conversation_context
+        .messages
+        .push(developer_message.clone());
 
+    let chat_client = ChatClient::new()?;
     let mut rl = rustyline::DefaultEditor::new().unwrap();
+
     loop {
         let readline = rl.readline(">> ");
         match readline {
@@ -38,59 +58,46 @@ Always answer with very accurate and kind responses that are short, to the point
                     continue;
                 }
                 rl.add_history_entry(&line).unwrap();
+
                 if line.starts_with(':') {
-                    let command = line.trim_start_matches(':');
-                    match command {
-                        "q" => break,
-                        "clear" => {
+                    match parse_command(&line) {
+                        Command::Quit => break,
+                        Command::Clear => {
                             conversation_context.messages.clear();
-                            conversation_context.messages.push(dev_message.clone());
+                            conversation_context
+                                .messages
+                                .push(developer_message.clone());
                             println!("\nConversation cleared.\n");
                         }
-                        "debug" => {
+                        Command::Debug => {
                             println!("\nDebugging conversation messages:");
-                            for message in &conversation_context.messages {
-                                println!("{}: {}", message.role, message.content);
+                            for msg in &conversation_context.messages {
+                                println!("{}: {}", msg.role, msg.content);
                             }
                             println!();
                         }
-                        _ => eprintln!("\nInvalid command: {}\n", command),
+                        Command::Doc => chat_client.document(&conversation_context).await?,
+                        Command::Unknown(cmd) => {
+                            eprintln!("\nInvalid command: {}\n", cmd);
+                        }
                     }
                 } else {
                     conversation_context.messages.push(Message {
                         role: "user".into(),
                         content: line.clone(),
                     });
-                    let request_as_json = serde_json::to_string(&conversation_context).unwrap();
-                    let response = run_with_spinner(async {
-                        client
-                            .post(url)
-                            .header("Content-Type", "application/json")
-                            .header("Authorization", format!("Bearer {}", api_key))
-                            .body(request_as_json)
-                            .send()
-                            .await?
-                            .text()
-                            .await
-                    })
-                    .await?;
-                    print!("\r                   \r");
-                    let _ = stdout().flush();
-                    let response_data: Response = serde_json::from_str(&response).unwrap();
-                    if let Some(choice) = response_data.choices.first() {
-                        let content = &choice.message.content;
+                    let response = chat_client.send_request(&conversation_context).await?;
+                    if let Some(choice) = response.choices.first() {
+                        let reply = choice.message.content.clone();
                         conversation_context.messages.push(Message {
                             role: "assistant".into(),
-                            content: content.to_owned(),
+                            content: reply.clone(),
                         });
-                        println!();
-                        println!("{}", content);
-                        println!();
+                        println!("\n{}\n", reply);
                     }
                 }
             }
-            Err(ReadlineError::Interrupted) => break,
-            Err(ReadlineError::Eof) => break,
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
             Err(err) => {
                 eprintln!("Error: {:?}", err);
                 break;
@@ -98,6 +105,70 @@ Always answer with very accurate and kind responses that are short, to the point
         }
     }
     Ok(())
+}
+
+struct ChatClient {
+    client: reqwest::Client,
+    url: String,
+    api_key: String,
+}
+
+impl ChatClient {
+    fn new() -> Result<Self, reqwest::Error> {
+        let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+        Ok(Self {
+            client: reqwest::Client::new(),
+            url: "https://api.openai.com/v1/chat/completions".into(),
+            api_key,
+        })
+    }
+
+    async fn send_request(
+        &self,
+        context: &ConversationContext,
+    ) -> Result<Response, reqwest::Error> {
+        let request_json = serde_json::to_string(context).unwrap();
+        let response_text = run_with_spinner(async {
+            self.client
+                .post(&self.url)
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .body(request_json)
+                .send()
+                .await?
+                .text()
+                .await
+        })
+        .await?;
+        print!("\r                   \r");
+        let _ = stdout().flush();
+        let response_data: Response = serde_json::from_str(&response_text).unwrap();
+        Ok(response_data)
+    }
+
+    async fn document(&self, context: &ConversationContext) -> Result<(), reqwest::Error> {
+        let mut new_context = ConversationContext::new();
+        let dev_message = Message {
+            role: "developer".into(),
+            content:
+                "You are a conversation distiller. Your job is to look at the following conversation
+and create a well formed document about the topics in the conversation. Do not talk about the
+people in the conversations, or that it is a conversation. Extract the meaning and data of
+the conversation and put it into a well formed report"
+                    .into(),
+        };
+        new_context.messages.push(dev_message);
+        for msg in &context.messages {
+            if msg.role != "developer" {
+                new_context.messages.push(msg.clone());
+            }
+        }
+        let response = self.send_request(&new_context).await?;
+        if let Some(choice) = response.choices.first() {
+            println!("{}", choice.message.content);
+        }
+        Ok(())
+    }
 }
 
 async fn run_with_spinner<F, T>(f: F) -> T
@@ -152,7 +223,7 @@ struct ConversationContext {
 
 impl ConversationContext {
     fn new() -> Self {
-        ConversationContext {
+        Self {
             model: "gpt-4o".into(),
             messages: Vec::new(),
         }
