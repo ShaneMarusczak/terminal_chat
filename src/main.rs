@@ -6,13 +6,14 @@ use std::{
     },
 };
 
+use print_typewriter::{char_duration, println_typed};
 use rustyline::error::ReadlineError;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, sleep};
 
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
-    println!("\n --terminal chat-- \n");
+    println!("\n  -- terminal chat -- \n");
 
     let mut conversation_context = ConversationContext::new();
     let dev_message = Message {
@@ -27,8 +28,8 @@ Always answer with very accurate and kind responses that are short, to the point
     let client = reqwest::Client::new();
     let url = "https://api.openai.com/v1/chat/completions";
     let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
-    let mut rl = rustyline::DefaultEditor::new().unwrap();
 
+    let mut rl = rustyline::DefaultEditor::new().unwrap();
     loop {
         let readline = rl.readline(">> ");
         match readline {
@@ -83,7 +84,11 @@ Always answer with very accurate and kind responses that are short, to the point
                             role: "assistant".into(),
                             content: content.to_owned(),
                         });
-                        println!("\n{}\n", content);
+                        // Set the typing speed (e.g., 50 milliseconds per character)
+                        let typing_speed = char_duration!(default 15.ms);
+                        println!();
+                        println_typed!(typing_speed, "{}", content);
+                        println!();
                     }
                 }
             }
