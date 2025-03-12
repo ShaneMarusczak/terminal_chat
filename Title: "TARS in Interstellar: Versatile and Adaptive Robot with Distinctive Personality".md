@@ -1,3 +1,0 @@
-Title: "TARS in Interstellar: Versatile and Adaptive Robot with Distinctive Personality"
-
-In *Interstellar*, the robot is named TARS. It is rectangular and monolithic, with a design that includes four retractable limbs. This unique configuration allows the robot to walk, adapt to different tasks, and assist the crew in a variety of situations. TARS is notable for its functionality, versatility, and distinctive personality.
