@@ -173,7 +173,7 @@ Make sure the report is written in markdown."
         };
 
         // Sanitize the title for use as a file name
-        let sanitized_title = title.replace("/", "_").replace("\\", "_");
+        let sanitized_title = title.replace("/", "_").replace("\\", "_").replace('"', "");
         if !Path::new("reports").exists() {
             std::fs::create_dir("reports").unwrap();
         }

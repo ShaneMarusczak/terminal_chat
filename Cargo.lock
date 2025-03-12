@@ -1178,6 +1178,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tc"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1189,17 +1200,6 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "terminal_chat"
-version = "0.1.0"
-dependencies = [
- "reqwest",
- "rustyline",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
