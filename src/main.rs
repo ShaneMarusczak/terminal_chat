@@ -1,5 +1,7 @@
 use std::{
-    io::{Write, stdout},
+    fs::File,
+    io::{Write, stdin, stdout},
+    path::Path,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -9,25 +11,6 @@ use std::{
 use rustyline::error::ReadlineError;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, sleep};
-
-#[derive(Debug)]
-enum Command {
-    Quit,
-    Clear,
-    Debug,
-    Doc,
-    Unknown(String),
-}
-
-fn parse_command(input: &str) -> Command {
-    match input.trim_start_matches(':').trim() {
-        "q" => Command::Quit,
-        "clear" => Command::Clear,
-        "debug" => Command::Debug,
-        "doc" => Command::Doc,
-        other => Command::Unknown(other.to_string()),
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
@@ -39,6 +22,7 @@ async fn main() -> Result<(), reqwest::Error> {
         content: "You are helpful, intelligent, and friendly.
 You are also very concise and accurate.
 No words are wasted in your responses.
+When what is being asked is ambiguous, please ask clarifying questions before answering. 
 Always answer with very accurate and kind responses that are short, to the point and friendly."
             .into(),
     };
@@ -59,41 +43,39 @@ Always answer with very accurate and kind responses that are short, to the point
                 }
                 rl.add_history_entry(&line).unwrap();
 
-                if line.starts_with(':') {
-                    match parse_command(&line) {
-                        Command::Quit => break,
-                        Command::Clear => {
-                            conversation_context.messages.clear();
-                            conversation_context
-                                .messages
-                                .push(developer_message.clone());
-                            println!("\nConversation cleared.\n");
-                        }
-                        Command::Debug => {
-                            println!("\nDebugging conversation messages:");
-                            for msg in &conversation_context.messages {
-                                println!("{}: {}", msg.role, msg.content);
-                            }
-                            println!();
-                        }
-                        Command::Doc => chat_client.document(&conversation_context).await?,
-                        Command::Unknown(cmd) => {
-                            eprintln!("\nInvalid command: {}\n", cmd);
-                        }
+                match line.as_str() {
+                    ":q" => break,
+                    ":clear" => {
+                        conversation_context.messages.clear();
+                        conversation_context
+                            .messages
+                            .push(developer_message.clone());
+                        println!("\nConversation cleared.\n");
                     }
-                } else {
-                    conversation_context.messages.push(Message {
-                        role: "user".into(),
-                        content: line.clone(),
-                    });
-                    let response = chat_client.send_request(&conversation_context).await?;
-                    if let Some(choice) = response.choices.first() {
-                        let reply = choice.message.content.clone();
+                    ":debug" => {
+                        println!("\nDebugging conversation messages:");
+                        for msg in &conversation_context.messages {
+                            println!("{}: {}", msg.role, msg.content);
+                        }
+                        println!();
+                    }
+                    ":doc" => {
+                        chat_client.document(&conversation_context).await?;
+                    }
+                    _ => {
                         conversation_context.messages.push(Message {
-                            role: "assistant".into(),
-                            content: reply.clone(),
+                            role: "user".into(),
+                            content: line.clone(),
                         });
-                        println!("\n{}\n", reply);
+                        let response = chat_client.send_request(&conversation_context).await?;
+                        if let Some(choice) = response.choices.first() {
+                            let reply = choice.message.content.clone();
+                            conversation_context.messages.push(Message {
+                                role: "assistant".into(),
+                                content: reply.clone(),
+                            });
+                            println!("\n{}\n", reply);
+                        }
                     }
                 }
             }
@@ -147,15 +129,17 @@ impl ChatClient {
     }
 
     async fn document(&self, context: &ConversationContext) -> Result<(), reqwest::Error> {
+        // Generate the report document.
         let mut new_context = ConversationContext::new();
         let dev_message = Message {
             role: "developer".into(),
-            content:
-                "You are a conversation distiller. Your job is to look at the following conversation
-and create a well formed document about the topics in the conversation. Do not talk about the
+            content: "Your job is to look at the following conversation
+and create a well-formed document about the topics in the conversation. Do not talk about the
 people in the conversations, or that it is a conversation. Extract the meaning and data of
-the conversation and put it into a well formed report. If there is code, please put it in the report."
-                    .into(),
+the conversation and put it into a well-formed report, do not omit any part of the
+conversation. If there is code, please put it in the report.
+Make sure the report is written in markdown."
+                .into(),
         };
         new_context.messages.push(dev_message);
         for msg in &context.messages {
@@ -164,9 +148,61 @@ the conversation and put it into a well formed report. If there is code, please 
             }
         }
         let response = self.send_request(&new_context).await?;
-        if let Some(choice) = response.choices.first() {
-            println!("\n{}\n", choice.message.content);
+        let report = if let Some(choice) = response.choices.first() {
+            choice.message.content.clone()
+        } else {
+            eprintln!("No report content received.");
+            return Ok(());
+        };
+
+        // Ask the AI for a title for the report.
+        let mut title_context = ConversationContext::new();
+        let title_prompt = Message {
+            role: "developer".into(),
+            content: format!(
+                "You are an assistant that creates concise titles for reports. Based on the following report content, provide a one-line title that summarizes the content. Do not include any additional text.\n\n{}",
+                report
+            ),
+        };
+        title_context.messages.push(title_prompt);
+        let title_response = self.send_request(&title_context).await?;
+        let title = if let Some(choice) = title_response.choices.first() {
+            choice.message.content.trim().to_string()
+        } else {
+            "Report".to_string()
+        };
+
+        // Sanitize the title for use as a file name
+        let sanitized_title = title.replace("/", "_").replace("\\", "_");
+        if !Path::new("reports").exists() {
+            std::fs::create_dir("reports").unwrap();
         }
+        let filename = format!("reports/{}.md", sanitized_title);
+
+        // Create file content with the title as the first line, an empty line, and then the report.
+        let file_contents = format!("{}\n\n{}", title, report);
+
+        // Display the document on the console.
+        println!("\n{}", file_contents);
+
+        // Prompt before saving the document, including the filename.
+        println!(
+            "\nDo you want to save this document as '{}'? (y/n): ",
+            filename
+        );
+        let mut answer = String::new();
+        stdin()
+            .read_line(&mut answer)
+            .expect("Failed to read input");
+        if answer.trim().eq_ignore_ascii_case("y") || answer.trim().eq_ignore_ascii_case("yes") {
+            let mut file = File::create(&filename).expect("Could not create file");
+            file.write_all(file_contents.as_bytes())
+                .expect("Could not write to file");
+            println!("\nDocument saved as '{}'\n", filename);
+        } else {
+            println!("Document not saved.");
+        }
+
         Ok(())
     }
 }
