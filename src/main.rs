@@ -12,11 +12,14 @@ use rustyline::error::ReadlineError;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, sleep};
 
+// List of available models. Add more here as needed.
+const AVAILABLE_MODELS: &[&str] = &["gpt-4o", "gpt-4o-search-preview", "o1", "o3-mini"];
+
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
     println!("\n  -- terminal chat -- \n");
 
-    let mut conversation_context = ConversationContext::new();
+    let mut conversation_context = ConversationContext::new("gpt-4o");
     let developer_message = Message {
         role: "developer".into(),
         content: "You are helpful, intelligent, and friendly.
@@ -61,6 +64,40 @@ Always answer with very accurate and kind responses that are short, to the point
                     }
                     ":doc" => {
                         chat_client.document(&conversation_context).await?;
+                    }
+                    ":cm" => {
+                        // Change model command.
+                        println!("\nAvailable models:");
+                        for (i, model) in AVAILABLE_MODELS.iter().enumerate() {
+                            println!("{}) {}", i + 1, model);
+                        }
+                        println!("Please select a model by typing its number (e.g., 1 or 2):");
+
+                        let mut model_choice = String::new();
+                        stdin()
+                            .read_line(&mut model_choice)
+                            .expect("Failed to read input");
+                        let model_choice = model_choice.trim();
+                        let index: usize = match model_choice.parse() {
+                            Ok(num) => num,
+                            Err(_) => {
+                                println!(
+                                    "Invalid selection. Keeping current model: {}",
+                                    conversation_context.model
+                                );
+                                continue;
+                            }
+                        };
+                        if index == 0 || index > AVAILABLE_MODELS.len() {
+                            println!(
+                                "Invalid selection. Keeping current model: {}",
+                                conversation_context.model
+                            );
+                            continue;
+                        }
+                        let new_model = AVAILABLE_MODELS[index - 1];
+                        conversation_context.model = new_model.to_string();
+                        println!("Model changed to '{}'\n", new_model);
                     }
                     _ => {
                         conversation_context.messages.push(Message {
@@ -130,7 +167,7 @@ impl ChatClient {
 
     async fn document(&self, context: &ConversationContext) -> Result<(), reqwest::Error> {
         // Generate the report document.
-        let mut new_context = ConversationContext::new();
+        let mut new_context = ConversationContext::new("o3-mini");
         let dev_message = Message {
             role: "developer".into(),
             content: "Your job is to look at the following conversation
@@ -138,7 +175,7 @@ and create a well-formed document about the topics in the conversation. Do not t
 people in the conversations, or that it is a conversation. Extract the meaning and data of
 the conversation and put it into a well-formed report, do not omit any part of the
 conversation. If there is code, please put it in the report.
-Make sure the report is written in markdown."
+Make sure the report is written in markdown. Make sure to look at all messages."
                 .into(),
         };
         new_context.messages.push(dev_message);
@@ -156,7 +193,7 @@ Make sure the report is written in markdown."
         };
 
         // Ask the AI for a title for the report.
-        let mut title_context = ConversationContext::new();
+        let mut title_context = ConversationContext::new("gpt-4o");
         let title_prompt = Message {
             role: "developer".into(),
             content: format!(
@@ -172,7 +209,7 @@ Make sure the report is written in markdown."
             "Report".to_string()
         };
 
-        // Sanitize the title for use as a file name
+        // Sanitize the title for use as a file name.
         let sanitized_title = title.replace("/", "_").replace("\\", "_").replace('"', "");
         if !Path::new("reports").exists() {
             std::fs::create_dir("reports").unwrap();
@@ -258,9 +295,9 @@ struct ConversationContext {
 }
 
 impl ConversationContext {
-    fn new() -> Self {
+    fn new(model: &str) -> Self {
         Self {
-            model: "gpt-4o".into(),
+            model: model.into(),
             messages: Vec::new(),
         }
     }
