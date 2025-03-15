@@ -1,8 +1,6 @@
 use crate::conversation::{ConversationContext, Response};
 use crate::messages::MESSAGES;
 use crate::spinner::run_with_spinner;
-use reqwest;
-use serde_json;
 use std::fs::File;
 use std::io::{Write, stdout};
 use std::path::Path;
@@ -70,7 +68,7 @@ impl ChatClient {
             role: "developer".into(),
             content: format!(
                 "{} \n::\n {}",
-                MESSAGES.get("title_prompt").unwrap().to_string(),
+                MESSAGES.get("title_prompt").unwrap(),
                 report
             ),
         };
