@@ -1,4 +1,5 @@
 use crate::conversation::{ConversationContext, Response};
+use crate::messages::MESSAGES;
 use crate::spinner::run_with_spinner;
 use reqwest;
 use serde_json;
@@ -49,13 +50,7 @@ impl ChatClient {
         let mut new_context = ConversationContext::new("o3-mini");
         let dev_message = crate::conversation::Message {
             role: "developer".into(),
-            content: "Your job is to look at the following conversation
-and create a well-formed document about the topics in the conversation. Do not talk about the
-people in the conversations, or that it is a conversation. Extract the meaning and data of
-the conversation and put it into a well-formed report. If there is code, please put it in the report.
-Make sure the report is written in markdown. Make sure to look at all messages. If some messages
-are nonsensical you can ignore them."
-                .into(),
+            content: MESSAGES.get("document_prompt").unwrap().to_string(),
         };
         new_context.messages.push(dev_message);
         for msg in &context.messages {
@@ -74,7 +69,8 @@ are nonsensical you can ignore them."
         let title_prompt = crate::conversation::Message {
             role: "developer".into(),
             content: format!(
-                "You are an assistant that creates concise titles for reports. Based on the following report content, provide a one-line title that summarizes the content. Do not include any additional text.\n\n{}",
+                "{} \n::\n {}",
+                MESSAGES.get("title_prompt").unwrap().to_string(),
                 report
             ),
         };
