@@ -10,6 +10,8 @@ cargo test
 echo
 cargo clippy
 echo
+cargo machete
+echo
 
 git status
 echo
