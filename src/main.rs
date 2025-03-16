@@ -7,49 +7,38 @@ mod spinner;
 use chat_client::ChatClient;
 use commands::handle_command;
 use conversation::{ConversationContext, Message};
+use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
 use messages::MESSAGES;
-use rustyline::error::ReadlineError;
+use std::{error::Error, sync::Arc};
 
 #[tokio::main]
-async fn main() -> Result<(), reqwest::Error> {
-    println!("\n  -- terminal chat -- \n");
+async fn main() -> Result<(), Box<dyn Error>> {
+    println!("\n-- terminal chat -- \n");
 
     let mut conversation_context = ConversationContext::new("gpt-4o");
-
     let developer_message = Message {
         role: "developer".into(),
-        content: MESSAGES.get("developer").unwrap().to_string(),
+        content: MESSAGES["developer"].to_string(),
     };
-
     conversation_context
         .messages
         .push(developer_message.clone());
 
     let chat_client = ChatClient::new()?;
-    let mut rl = rustyline::DefaultEditor::new().unwrap();
+    let interface = build_interface()?;
 
-    loop {
-        let readline = rl.readline(">> ");
-        let line = match readline {
-            Ok(l) => l.trim().to_owned(),
-            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
-            Err(err) => {
-                eprintln!("Error: {:?}", err);
-                break;
-            }
-        };
-        if line.is_empty() {
+    while let ReadResult::Input(line) = interface.read_line()? {
+        if line.trim().is_empty() {
             continue;
         }
-        rl.add_history_entry(&line).unwrap();
-        if let Some(stripped) = line.strip_prefix(':') {
-            let new: String = stripped.chars().filter(|c| !c.is_whitespace()).collect();
-            let as_str = new.as_str();
-            match as_str {
+        interface.add_history(line.clone());
+
+        if let Some(cmd) = line.strip_prefix(':') {
+            match cmd {
                 "q" | "quit" => break,
                 _ => {
                     handle_command(
-                        as_str,
+                        cmd,
                         &mut conversation_context,
                         &developer_message,
                         &chat_client,
@@ -58,20 +47,36 @@ async fn main() -> Result<(), reqwest::Error> {
                 }
             }
         } else {
-            conversation_context.messages.push(Message {
-                role: "user".into(),
-                content: line.to_string(),
-            });
-            let response = chat_client.send_request(&conversation_context).await?;
-            if let Some(choice) = response.choices.first() {
-                let reply = choice.message.content.clone();
-                conversation_context.messages.push(Message {
-                    role: "assistant".into(),
-                    content: reply.clone(),
-                });
-                println!("\n{}\n", reply);
-            }
+            actually_chat(line, &mut conversation_context, &chat_client).await?;
         }
+    }
+    Ok(())
+}
+
+fn build_interface() -> Result<Interface<DefaultTerminal>, Box<dyn Error>> {
+    let interface = Interface::new("terminal chat interface")?;
+    interface.set_completer(Arc::new(PathCompleter));
+    interface.set_prompt(">> ")?;
+    Ok(interface)
+}
+
+async fn actually_chat(
+    line: String,
+    context: &mut ConversationContext,
+    client: &ChatClient,
+) -> Result<(), Box<dyn Error>> {
+    context.messages.push(Message {
+        role: "user".into(),
+        content: line.clone(),
+    });
+    let response = client.send_request(context).await?;
+    if let Some(choice) = response.choices.first() {
+        let reply = choice.message.content.clone();
+        context.messages.push(Message {
+            role: "assistant".into(),
+            content: reply.clone(),
+        });
+        println!("\n{}\n", reply);
     }
     Ok(())
 }
