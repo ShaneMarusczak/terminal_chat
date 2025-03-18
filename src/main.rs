@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 fn build_interface() -> Result<Interface<DefaultTerminal>, Box<dyn Error>> {
     let interface = Interface::new("terminal chat interface")?;
     interface.set_completer(Arc::new(PathCompleter));
-    interface.set_prompt(">> ")?;
+    interface.set_prompt("🗣️ ")?;
     Ok(interface)
 }
 
@@ -76,7 +76,7 @@ async fn actually_chat(
             role: "assistant".into(),
             content: reply.clone(),
         });
-        println!("\n{}\n", reply);
+        println!("\n🤖 {}\n", reply);
     }
     Ok(())
 }
