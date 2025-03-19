@@ -30,6 +30,8 @@ pub async fn handle_command(
         _ => {
             if cmd.starts_with("gf") {
                 gf_command(context, cmd);
+            } else if cmd.starts_with("readme") {
+                readme_command(chat_client, cmd).await?;
             } else {
                 eprintln!("Unknown command: {cmd}");
             }
@@ -104,21 +106,24 @@ fn change_model_command(context: &mut ConversationContext) {
 }
 
 fn gf_command(context: &mut ConversationContext, cmd: &str) {
-    let args = cmd.trim().splitn(2, ' ').collect::<Vec<&str>>();
-    if args.len() == 2 {
-        let path = args[1].trim();
-        match fs::read_to_string(Path::new(path)) {
+    let args = cmd.split_whitespace().skip(1).collect::<Vec<&str>>();
+    if args.is_empty() {
+        eprintln!("Invalid use of gf. Usage: gf <path1> <path2> ...");
+        return;
+    }
+
+    for path in args {
+        let trimmed_path = path.trim();
+        match fs::read_to_string(Path::new(trimmed_path)) {
             Ok(content) => {
                 context.messages.push(Message {
                     role: "user".to_string(),
-                    content: format!("{}\n\n:::\n\n{}", path, content),
+                    content: format!("{}\n\n:::\n\n{}", trimmed_path, content),
                 });
-                println!("\nAdded {} to conversation context\n", path);
+                println!("\nAdded {} to conversation context\n", trimmed_path);
             }
-            Err(e) => eprintln!("Error reading {}:{}\n", path, e),
+            Err(e) => eprintln!("Error reading {}: {}\n", trimmed_path, e),
         }
-    } else {
-        eprintln!("Invalid use of gf. Usage: gf <path>");
     }
 }
 
@@ -129,8 +134,13 @@ fn help_command() {
     println!("doc        - Documents the conversation using the chat client's document method.");
     println!("cm         - Changes the chat model.");
     println!("help       - Displays this help message.");
-    println!("gf <path>  - Adds the content of the specified file to the conversation context.");
-    println!("rmr        - Launches rmr if installed in this machines path");
+    println!(
+        "gf <path1> <path2> ... - Adds the content of the specified files to the conversation context."
+    );
+    println!("rmr        - Launches rmr if installed in this machine's path.");
+    println!(
+        "readme <directory> [extensions...] - Processes directory files into a README document."
+    );
 
     println!();
 }
@@ -208,4 +218,101 @@ async fn document_command(
         println!("Document not saved.");
     }
     Ok(())
+}
+use std::collections::HashSet;
+use walkdir::WalkDir; // Ensure you add this dependency to your Cargo.toml
+
+async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<dyn Error>> {
+    let args = cmd.split_whitespace().skip(1).collect::<Vec<&str>>();
+
+    if args.is_empty() {
+        eprintln!("Invalid use of readme. Usage: readme <directory> [extensions...]");
+        return Ok(());
+    }
+
+    let dir = args[0];
+    let extensions: HashSet<&str> = if args.len() > 1 {
+        args[1..].iter().copied().collect()
+    } else {
+        HashSet::new()
+    };
+
+    let mut new_context = ConversationContext::new("o3-mini");
+    let dev_message = Message {
+        role: "developer".into(),
+        content: MESSAGES.get("readme").unwrap().to_string(),
+    };
+    new_context.messages.push(dev_message);
+
+    let mut names = vec![];
+
+    for entry in WalkDir::new(dir) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            let path = entry.path();
+            let file_name = String::from(path.to_str().unwrap());
+            if extensions.is_empty()
+                || extensions.contains(path.extension().and_then(|ext| ext.to_str()).unwrap_or(""))
+            {
+                names.push(file_name);
+                match fs::read_to_string(path) {
+                    Ok(content) => {
+                        new_context.messages.push(Message {
+                            role: "user".to_string(),
+                            content: format!("{}\n\n:::\n\n{}", path.display(), content),
+                        });
+                    }
+                    Err(e) => eprintln!("Error reading {}: {}", path.display(), e),
+                }
+            }
+        }
+    }
+
+    print!("{:?}", names);
+
+    let response = chat_client.send_request(&new_context).await?;
+    let result_content = if let Some(choice) = response.choices.first() {
+        choice.message.content.clone()
+    } else {
+        eprintln!("No response received.");
+        return Ok(());
+    };
+    let unique_name = generate_random_string(10);
+    let filename = format!("readmes/{unique_name}_readme.md");
+    println!("{}", result_content);
+    println!(
+        "\nDo you want to save this document as '{}'? (y/n): ",
+        filename
+    );
+
+    let mut answer = String::new();
+    std::io::stdin()
+        .read_line(&mut answer)
+        .expect("Failed to read input");
+
+    if answer.trim().eq_ignore_ascii_case("y") || answer.trim().eq_ignore_ascii_case("yes") {
+        if !Path::new("readmes").exists() {
+            fs::create_dir("readmes")?;
+        }
+        let mut file = File::create(&filename)?;
+        file.write_all(result_content.as_bytes())?;
+        println!("\nDocument saved as '{}'\n", &filename);
+    } else {
+        println!("Document not saved.");
+    }
+    Ok(())
+}
+
+use rand::Rng;
+fn generate_random_string(length: usize) -> String {
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                             abcdefghijklmnopqrstuvwxyz\
+                             0123456789";
+    let mut rng = rand::rng();
+    (0..length)
+        .map(|_| {
+            let idx = rng.random_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect()
 }
