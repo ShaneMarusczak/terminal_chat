@@ -1,12 +1,6 @@
-# Terminal Chat
+# Terminal Chat (tc)
 
-A Rust-based console application for chatting with OpenAI’s language models right in your terminal.
-
-## Overview
-
-This application remembers conversation context and offers specialized commands:
-- “:doc” automatically creates a Markdown report of the conversation.
-- “:gf” (get file) uploads file content into the conversation context.
+Terminal Chat is a lightweight, interactive chat interface built in Rust. It allows users to converse with an AI powered by the OpenAI API from the terminal. Key features include real‐time chat interactions, context tracking, file-based conversation augmentation, document generation with markdown output, and support for various panel commands—all wrapped in a user-friendly terminal UI.
 
 ## Features
 
