@@ -36,18 +36,33 @@ This application remembers conversation context and offers specialized commands:
    cargo run
 3. Enter chat messages or commands as needed (e.g., “:quit”).
 
-## Commands
+## Usage
 
-Available commands:
+1. **Available Commands:**
+   - **:clear** – Clear the current conversation context.
+   - **:debug** – Display debugging information (current model and conversation messages).
+   - **:doc** – Generate a document report based on the conversation.
+   - **:cm** – Change the chat model (select from available options).
+   - **:gf \<files\>** – Add content from one or more files to the conversation.
+   - **:rmr** – Launch the external `rmr` tool if installed.
+   - **:readme \<directory\> [extensions...]** – Process files from a directory into a formatted README in markdown.
+   - **:help** – Show command usage help.
+   - **:q / :quit** – Exit the application.
 
-- :clear – Clears the conversation context.
-- :debug – Prints current conversation model and messages for debugging.
-- :doc – Generates a Markdown report of the conversation and offers to save it.
-- :cm – Changes the active chat model.
-- :help – Displays this help information.
-- :gf <path> – Appends the content of the specified file to the conversation.
-- :rmr – Launches rmr if it’s installed in your system’s PATH.[rmr](https://github.com/ShaneMarusczak/rm-repl)
+2. **Chat Flow:**
+   - Enter plain text to chat with the assistant.
+   - Use the colon-prefixed commands to perform administrative tasks or generate documentation.
+   
+## Contribution Guidelines
 
-## Contributing
+Contributions are welcome! If you wish to contribute:
+- Fork the repository and create a feature/bug fix branch.
+- Ensure your code adheres to existing conventions and is well-documented.
+- Feel free to open issues or pull requests.
+- For detailed guidelines, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file if available.
 
-Open an issue or submit a pull request to share ideas or improvements.
+---
+
+## License
+
+This project is licensed under the terms specified in the [LICENSE](LICENSE) file. Please review this file for additional details.

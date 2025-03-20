@@ -248,7 +248,7 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
 
     for entry in WalkDir::new(dir) {
         let entry = entry?;
-        if entry.file_type().is_file() {
+        if entry.file_type().is_file() && !entry.file_name().to_str().unwrap().starts_with('.') {
             let path = entry.path();
             let file_name = String::from(path.to_str().unwrap());
             if extensions.is_empty()
@@ -268,7 +268,7 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
         }
     }
 
-    print!("{:?}", names);
+    println!("\nFiles used: {:?}\n\n", names);
 
     let response = chat_client.send_request(&new_context).await?;
     let result_content = if let Some(choice) = response.choices.first() {

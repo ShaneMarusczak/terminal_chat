@@ -22,6 +22,8 @@ pub static MESSAGES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
 
 7. **License Information**: State the licensing terms of the project, referring to the `LICENSE` file if present.
 
-Ensure the README is clear, logically organized, and easy to follow. Use the extracted content from key project files to enrich the descriptions and instructions.");
+Ensure the README is clear, logically organized, and easy to follow. Use the extracted content from key project files to enrich the descriptions and instructions.
+
+Try to be concise as well. Dont repeat yourself.");
     m
 });
