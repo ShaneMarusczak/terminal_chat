@@ -149,6 +149,9 @@ async fn document_command(
     context: &ConversationContext,
     chat_client: &ChatClient,
 ) -> Result<(), Box<dyn Error>> {
+    //TODO: Experiment with sending the doc and the conversation both to another moddel for
+    // evaluation and rewriting. Show both to the user and let the user pick
+
     //build context
     let mut new_context = ConversationContext::new("o3-mini");
     let dev_message = Message {
