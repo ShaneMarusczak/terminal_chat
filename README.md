@@ -1,5 +1,7 @@
 # Terminal Chat (tc)
 
+# rm-repl [![Rust](https://github.com/ShaneMarusczak/terminal-chat/actions/workflows/rust.yml/badge.svg?branch=main&event=push)](https://github.com/ShaneMarusczak/terminal-chat/actions/workflows/rust.yml)
+
 Terminal Chat is a lightweight, interactive chat interface built in Rust. It allows users to converse with an AI powered by the OpenAI API from the terminal. Key features include real‐time chat interactions, context tracking, file-based conversation augmentation, document generation with markdown output, and support for various panel commands—all wrapped in a user-friendly terminal UI.
 
 ## Features
