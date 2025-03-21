@@ -11,7 +11,7 @@ use crate::{
     spinner::run_with_spinner,
 };
 
-const API_URL: &str = "https://api.openai.com/v1/chat/completions";
+const API_URL: &str = "https://api.openai.com/v1/responses";
 
 pub struct ChatClient {
     client: Client,

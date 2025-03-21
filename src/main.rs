@@ -20,9 +20,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         role: "developer".into(),
         content: MESSAGES["developer"].to_string(),
     };
-    conversation_context
-        .messages
-        .push(developer_message.clone());
+    conversation_context.input.push(developer_message.clone());
 
     let chat_client = ChatClient::new()?;
     let interface = build_interface()?;
@@ -65,18 +63,22 @@ async fn actually_chat(
     context: &mut ConversationContext,
     client: &ChatClient,
 ) -> Result<(), Box<dyn Error>> {
-    context.messages.push(Message {
+    context.input.push(Message {
         role: "user".into(),
         content: line.clone(),
     });
     let response = client.send_request(context).await?;
-    if let Some(choice) = response.choices.first() {
-        let reply = choice.message.content.clone();
-        context.messages.push(Message {
-            role: "assistant".into(),
-            content: reply.clone(),
-        });
-        println!("\n🤖 {}\n", reply);
+    if let Some(choice) = response.output.first() {
+        if let Some(first_content) = choice.content.first() {
+            let reply = first_content.text.clone();
+            context.input.push(Message {
+                role: "assistant".into(),
+                content: reply.clone(),
+            });
+            println!("\n🤖 {}\n", reply);
+        } else {
+            eprintln!("Response output has no content.");
+        }
     }
     Ok(())
 }

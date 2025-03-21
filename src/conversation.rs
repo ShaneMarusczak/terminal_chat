@@ -9,24 +9,37 @@ pub struct Message {
 #[derive(Serialize, Debug)]
 pub struct ConversationContext {
     pub model: String,
-    pub messages: Vec<Message>,
+    pub input: Vec<Message>,
 }
 
 impl ConversationContext {
     pub fn new(model: &str) -> Self {
         Self {
             model: model.into(),
-            messages: Vec::new(),
+            input: Vec::new(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Response {
-    pub choices: Vec<Choice>,
+    pub output: Vec<Output>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Choice {
-    pub message: Message,
+pub struct Output {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub id: String,
+    pub status: String,
+    pub role: String,
+    pub content: Vec<OutputContent>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OutputContent {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub text: String,
+    pub annotations: Vec<serde_json::Value>,
 }

@@ -65,8 +65,8 @@ fn is_executable_installed(executable: &str) -> bool {
 }
 
 fn clear_command(context: &mut ConversationContext, dev_message: &Message) {
-    context.messages.clear();
-    context.messages.push(dev_message.clone());
+    context.input.clear();
+    context.input.push(dev_message.clone());
     Command::new("clear")
         .status()
         .expect("clear command failed");
@@ -76,7 +76,7 @@ fn clear_command(context: &mut ConversationContext, dev_message: &Message) {
 fn debug_command(context: &ConversationContext) {
     println!("\nCurrent model: {}", context.model);
     println!("\nCurrent context messages:\n");
-    for msg in &context.messages {
+    for msg in &context.input {
         println!("{}: {}\n", msg.role, msg.content);
     }
     println!();
@@ -99,7 +99,7 @@ fn change_model_command(context: &mut ConversationContext) {
             println!("Model changed to: {}\n", context.model);
         }
         _ => eprintln!(
-            "Invalid selecton. Keeping current model: {}\n",
+            "Invalid selection. Keeping current model: {}\n",
             context.model
         ),
     }
@@ -116,7 +116,7 @@ fn gf_command(context: &mut ConversationContext, cmd: &str) {
         let trimmed_path = path.trim();
         match fs::read_to_string(Path::new(trimmed_path)) {
             Ok(content) => {
-                context.messages.push(Message {
+                context.input.push(Message {
                     role: "user".to_string(),
                     content: format!("{}\n\n:::\n\n{}", trimmed_path, content),
                 });
@@ -135,7 +135,7 @@ fn help_command() {
     println!("cm         - Changes the chat model.");
     println!("help       - Displays this help message.");
     println!(
-        "gf <path1> <path2> ... - Adds the content of the specified files to the conversation context."
+        "gf <path1> <path2> ... - Adds the content of one or more specified files to the conversation context."
     );
     println!("rmr        - Launches rmr if installed in this machine's path.");
     println!(
@@ -149,32 +149,31 @@ async fn document_command(
     context: &ConversationContext,
     chat_client: &ChatClient,
 ) -> Result<(), Box<dyn Error>> {
-    //TODO: Experiment with sending the doc and the conversation both to another moddel for
-    // evaluation and rewriting. Show both to the user and let the user pick
-
-    //build context
     let mut new_context = ConversationContext::new("o3-mini");
     let dev_message = Message {
         role: "developer".into(),
         content: MESSAGES.get("document_prompt").unwrap().to_string(),
     };
-    new_context.messages.push(dev_message);
-    for msg in &context.messages {
+    new_context.input.push(dev_message);
+    for msg in &context.input {
         if msg.role != "developer" {
-            new_context.messages.push(msg.clone());
+            new_context.input.push(msg.clone());
         }
     }
 
-    //get report
     let response = chat_client.send_request(&new_context).await?;
-    let report = if let Some(choice) = response.choices.first() {
-        choice.message.content.clone()
+    let report = if let Some(choice) = response.output.first() {
+        if let Some(content) = choice.content.first() {
+            content.text.clone()
+        } else {
+            eprintln!("No content received in the document report.");
+            return Ok(());
+        }
     } else {
         eprintln!("No report content received.");
         return Ok(());
     };
 
-    //get title
     let mut title_context = ConversationContext::new("gpt-4o");
     let title_prompt = Message {
         role: "developer".into(),
@@ -184,10 +183,14 @@ async fn document_command(
             report
         ),
     };
-    title_context.messages.push(title_prompt);
+    title_context.input.push(title_prompt);
     let title_response = chat_client.send_request(&title_context).await?;
-    let title = if let Some(choice) = title_response.choices.first() {
-        choice.message.content.trim().to_string()
+    let title = if let Some(choice) = title_response.output.first() {
+        if let Some(content) = choice.content.first() {
+            content.text.trim().to_string()
+        } else {
+            "Report".to_string()
+        }
     } else {
         "Report".to_string()
     };
@@ -197,7 +200,6 @@ async fn document_command(
         .replace(" ", "_")
         .replace('"', "");
 
-    //save to file system
     let filename = format!("reports/{}.md", sanitized_title);
     let file_contents = format!("{}\n\n{}", title, report);
     println!("\n{}", file_contents);
@@ -222,17 +224,16 @@ async fn document_command(
     }
     Ok(())
 }
+
 use std::collections::HashSet;
-use walkdir::WalkDir; // Ensure you add this dependency to your Cargo.toml
+use walkdir::WalkDir;
 
 async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<dyn Error>> {
     let args = cmd.split_whitespace().skip(1).collect::<Vec<&str>>();
-
     if args.is_empty() {
         eprintln!("Invalid use of readme. Usage: readme <directory> [extensions...]");
         return Ok(());
     }
-
     let dir = args[0];
     let extensions: HashSet<&str> = if args.len() > 1 {
         args[1..].iter().copied().collect()
@@ -245,7 +246,7 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
         role: "developer".into(),
         content: MESSAGES.get("readme").unwrap().to_string(),
     };
-    new_context.messages.push(dev_message);
+    new_context.input.push(dev_message);
 
     let mut names = vec![];
 
@@ -260,7 +261,7 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
                 names.push(file_name);
                 match fs::read_to_string(path) {
                     Ok(content) => {
-                        new_context.messages.push(Message {
+                        new_context.input.push(Message {
                             role: "user".to_string(),
                             content: format!("{}\n\n:::\n\n{}", path.display(), content),
                         });
@@ -270,18 +271,21 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
             }
         }
     }
-
     println!("\nFiles used: {:?}\n\n", names);
-
     let response = chat_client.send_request(&new_context).await?;
-    let result_content = if let Some(choice) = response.choices.first() {
-        choice.message.content.clone()
+    let result_content = if let Some(choice) = response.output.first() {
+        if let Some(content) = choice.content.first() {
+            content.text.clone()
+        } else {
+            eprintln!("No content received from readme command.");
+            return Ok(());
+        }
     } else {
         eprintln!("No response received.");
         return Ok(());
     };
     let unique_name = generate_random_string(10);
-    let filename = format!("readmes/{unique_name}_readme.md");
+    let filename = format!("readmes/{}_readme.md", unique_name);
     println!("{}", result_content);
     println!(
         "\nDo you want to save this document as '{}'? (y/n): ",
