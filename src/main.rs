@@ -15,7 +15,7 @@ use std::{error::Error, sync::Arc};
 async fn main() -> Result<(), Box<dyn Error>> {
     println!("\n-- terminal chat -- \n");
 
-    let mut conversation_context = ConversationContext::new("gpt-4o", true);
+    let mut conversation_context = ConversationContext::new("gpt-4o-mini", true);
     let developer_message = Message {
         role: "developer".into(),
         content: MESSAGES["developer"].to_string(),

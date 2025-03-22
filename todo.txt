@@ -1,0 +1,11 @@
+todos:
+
+Add the ability to prompt for an image and then open the url in the browser
+https://platform.openai.com/docs/api-reference/images
+
+
+Add the ability to prompt for a voice and then play the mp3 and then offer to save it
+https://platform.openai.com/docs/api-reference/audio/createSpeech
+
+
+Try structured outputs and function calling

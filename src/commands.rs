@@ -11,7 +11,14 @@ use std::{
     path::Path,
     process::Command,
 };
-const AVAILABLE_MODELS: &[&str] = &["gpt-4o", "gpt-4o-search-preview", "o1", "o3-mini"];
+
+const AVAILABLE_MODELS: &[&str] = &[
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4o-search-preview",
+    "o1",
+    "o3-mini",
+];
 
 pub async fn handle_command(
     cmd: &str,
@@ -33,7 +40,14 @@ pub async fn handle_command(
             } else if cmd.starts_with("readme") {
                 readme_command(chat_client, cmd).await?;
             } else {
-                eprintln!("Unknown command: {cmd}");
+                let main_cmd = cmd.split_whitespace().next().unwrap_or(cmd);
+                let commands = [
+                    "clear", "debug", "doc", "cm", "help", "rmr", "gf", "readme", "q", "quit",
+                ];
+                eprintln!("\nUnknown command: {main_cmd}");
+
+                let maybe = find_matching_word(main_cmd, &commands)?;
+                eprint!("Did you mean {}?\n\n", maybe);
             }
         }
     }
@@ -255,9 +269,9 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
             if extensions.is_empty()
                 || extensions.contains(path.extension().and_then(|ext| ext.to_str()).unwrap_or(""))
             {
-                names.push(file_name);
                 match fs::read_to_string(path) {
                     Ok(content) => {
+                        names.push(file_name);
                         new_context.input.push(Message {
                             role: "user".to_string(),
                             content: format!("{}\n\n:::\n\n{}", path.display(), content),
@@ -277,13 +291,25 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
         eprintln!("No content received from readme command.");
         return Ok(());
     };
-
-    let unique_name = generate_random_string(10);
-    let filename = format!("readmes/{}_readme.md", unique_name);
     println!("{}", result_content);
+    println!("\nEnter the README file name to save (without extension): ");
+
+    let mut filename = String::new();
+    std::io::stdin()
+        .read_line(&mut filename)
+        .expect("Failed to read input");
+    let sanitized_filename = filename.trim().to_string();
+
+    if sanitized_filename.is_empty() {
+        eprintln!("Invalid filename. Document not saved.");
+        return Ok(());
+    }
+
+    let final_name = format!("readmes/{}.md", sanitized_filename);
+
     println!(
-        "\nDo you want to save this document as '{}'? (y/n): ",
-        filename
+        "\nDo you want to save this document as '{}.md'? (y/n): ",
+        sanitized_filename
     );
 
     let mut answer = String::new();
@@ -295,27 +321,13 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
         if !Path::new("readmes").exists() {
             fs::create_dir("readmes")?;
         }
-        let mut file = File::create(&filename)?;
+        let mut file = File::create(&final_name)?;
         file.write_all(result_content.as_bytes())?;
-        println!("\nDocument saved as '{}'\n", &filename);
+        println!("\nDocument saved to '{}'\n", &final_name);
     } else {
         println!("Document not saved.");
     }
     Ok(())
-}
-
-use rand::Rng;
-fn generate_random_string(length: usize) -> String {
-    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                             abcdefghijklmnopqrstuvwxyz\
-                             0123456789";
-    let mut rng = rand::rng();
-    (0..length)
-        .map(|_| {
-            let idx = rng.random_range(0..CHARSET.len());
-            CHARSET[idx] as char
-        })
-        .collect()
 }
 
 fn extract_message_text(response: &Response) -> Option<String> {
@@ -329,4 +341,39 @@ fn extract_message_text(response: &Response) -> Option<String> {
         }
     }
     None
+}
+
+fn find_matching_word(word: &str, words: &[&str]) -> Result<String, String> {
+    let mut min_dist = 9999;
+    let mut final_string = String::new();
+    for w in words {
+        let distance = min_distance(w, word);
+        if distance < min_dist {
+            min_dist = distance;
+            final_string = String::from(*w);
+        }
+    }
+    Ok(final_string)
+}
+
+fn min_distance(word1: &str, word2: &str) -> i32 {
+    let (word1, word2) = (word1.as_bytes(), word2.as_bytes());
+    let mut dist = Vec::with_capacity(word2.len() + 1);
+    for j in 0..=word2.len() {
+        dist.push(j)
+    }
+    let mut prev_dist = dist.clone();
+    for i in 1..=word1.len() {
+        for j in 0..=word2.len() {
+            if j == 0 {
+                dist[j] += 1;
+            } else if word1[i - 1] == word2[j - 1] {
+                dist[j] = prev_dist[j - 1];
+            } else {
+                dist[j] = dist[j].min(dist[j - 1]).min(prev_dist[j - 1]) + 1;
+            }
+        }
+        prev_dist.copy_from_slice(&dist);
+    }
+    dist[word2.len()] as i32
 }
