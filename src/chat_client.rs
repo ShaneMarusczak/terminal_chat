@@ -31,6 +31,8 @@ impl ChatClient {
 
     pub async fn stream(&self, context: &mut ConversationContext) -> Result<(), Box<dyn Error>> {
         println!();
+        print!("🤖 ");
+        stdout().flush().ok();
 
         let request_json = serde_json::to_string(context)?;
         let response = self
@@ -43,8 +45,6 @@ impl ChatClient {
             .await?;
 
         let mut stream = response.bytes_stream();
-        print!("🤖 ");
-        stdout().flush().ok();
 
         let mut acc = String::new();
 
