@@ -15,7 +15,7 @@ use std::{error::Error, sync::Arc};
 async fn main() -> Result<(), Box<dyn Error>> {
     println!("\n-- terminal chat -- \n");
 
-    let mut conversation_context = ConversationContext::new("gpt-4o");
+    let mut conversation_context = ConversationContext::new("gpt-4o", true);
     let developer_message = Message {
         role: "developer".into(),
         content: MESSAGES["developer"].to_string(),
@@ -67,18 +67,23 @@ async fn actually_chat(
         role: "user".into(),
         content: line.clone(),
     });
-    let response = client.send_request(context).await?;
-    if let Some(choice) = response.output.first() {
-        if let Some(first_content) = choice.content.first() {
-            let reply = first_content.text.clone();
+
+    if context.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
+        context.set_stream(false);
+        let response = client.send_request_c(context).await?;
+
+        if let Some(choice) = response.choices.first() {
+            let reply = choice.message.content.clone();
             context.input.push(Message {
                 role: "assistant".into(),
                 content: reply.clone(),
             });
             println!("\n🤖 {}\n", reply);
-        } else {
-            eprintln!("Response output has no content.");
         }
+        context.set_stream(true);
+    } else {
+        client.stream(context).await?;
     }
+
     Ok(())
 }

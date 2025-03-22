@@ -1,6 +1,6 @@
 use crate::{
     chat_client::ChatClient,
-    conversation::{ConversationContext, Message},
+    conversation::{ConversationContext, Message, Response},
     messages::MESSAGES,
 };
 use std::{
@@ -134,14 +134,11 @@ fn help_command() {
     println!("doc        - Documents the conversation using the chat client's document method.");
     println!("cm         - Changes the chat model.");
     println!("help       - Displays this help message.");
-    println!(
-        "gf <path1> <path2> ... - Adds the content of one or more specified files to the conversation context."
-    );
+    println!("gf <path1> <path2> ...");
+    println!("          - Adds the content of specified files to the conversation context.");
     println!("rmr        - Launches rmr if installed in this machine's path.");
-    println!(
-        "readme <directory> [extensions...] - Processes directory files into a README document."
-    );
-
+    println!("readme <directory> [extensions...]");
+    println!("          - Processes directory files into a README document.");
     println!();
 }
 
@@ -149,7 +146,7 @@ async fn document_command(
     context: &ConversationContext,
     chat_client: &ChatClient,
 ) -> Result<(), Box<dyn Error>> {
-    let mut new_context = ConversationContext::new("o3-mini");
+    let mut new_context = ConversationContext::new("o3-mini", false);
     let dev_message = Message {
         role: "developer".into(),
         content: MESSAGES.get("document_prompt").unwrap().to_string(),
@@ -162,19 +159,15 @@ async fn document_command(
     }
 
     let response = chat_client.send_request(&new_context).await?;
-    let report = if let Some(choice) = response.output.first() {
-        if let Some(content) = choice.content.first() {
-            content.text.clone()
-        } else {
-            eprintln!("No content received in the document report.");
-            return Ok(());
-        }
+
+    let report = if let Some(r) = extract_message_text(&response) {
+        r
     } else {
-        eprintln!("No report content received.");
+        eprintln!("No content received in the document report.");
         return Ok(());
     };
 
-    let mut title_context = ConversationContext::new("gpt-4o");
+    let mut title_context = ConversationContext::new("gpt-4o", false);
     let title_prompt = Message {
         role: "developer".into(),
         content: format!(
@@ -185,15 +178,13 @@ async fn document_command(
     };
     title_context.input.push(title_prompt);
     let title_response = chat_client.send_request(&title_context).await?;
-    let title = if let Some(choice) = title_response.output.first() {
-        if let Some(content) = choice.content.first() {
-            content.text.trim().to_string()
-        } else {
-            "Report".to_string()
-        }
+
+    let title = if let Some(r) = extract_message_text(&title_response) {
+        r
     } else {
         "Report".to_string()
     };
+
     let sanitized_title = title
         .replace("/", "_")
         .replace("\\", "_")
@@ -241,7 +232,7 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
         HashSet::new()
     };
 
-    let mut new_context = ConversationContext::new("o3-mini");
+    let mut new_context = ConversationContext::new("o3-mini", false);
     let dev_message = Message {
         role: "developer".into(),
         content: MESSAGES.get("readme").unwrap().to_string(),
@@ -273,17 +264,14 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
     }
     println!("\nFiles used: {:?}\n\n", names);
     let response = chat_client.send_request(&new_context).await?;
-    let result_content = if let Some(choice) = response.output.first() {
-        if let Some(content) = choice.content.first() {
-            content.text.clone()
-        } else {
-            eprintln!("No content received from readme command.");
-            return Ok(());
-        }
+
+    let result_content = if let Some(r) = extract_message_text(&response) {
+        r
     } else {
-        eprintln!("No response received.");
+        eprintln!("No content received from readme command.");
         return Ok(());
     };
+
     let unique_name = generate_random_string(10);
     let filename = format!("readmes/{}_readme.md", unique_name);
     println!("{}", result_content);
@@ -322,4 +310,17 @@ fn generate_random_string(length: usize) -> String {
             CHARSET[idx] as char
         })
         .collect()
+}
+
+fn extract_message_text(response: &Response) -> Option<String> {
+    for output in &response.output {
+        if output.type_field == "message" {
+            if let Some(content) = &output.content {
+                if let Some(first_content) = content.first() {
+                    return Some(first_content.text.clone());
+                }
+            }
+        }
+    }
+    None
 }

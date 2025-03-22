@@ -10,14 +10,20 @@ pub struct Message {
 pub struct ConversationContext {
     pub model: String,
     pub input: Vec<Message>,
+    pub stream: bool,
 }
 
 impl ConversationContext {
-    pub fn new(model: &str) -> Self {
+    pub fn new(model: &str, stream: bool) -> Self {
         Self {
             model: model.into(),
             input: Vec::new(),
+            stream,
         }
+    }
+
+    pub fn set_stream(&mut self, s: bool) {
+        self.stream = s;
     }
 }
 
@@ -27,13 +33,23 @@ pub struct Response {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ResponseC {
+    pub choices: Vec<Choice>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Choice {
+    pub message: Message,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Output {
     #[serde(rename = "type")]
     pub type_field: String,
     pub id: String,
-    pub status: String,
-    pub role: String,
-    pub content: Vec<OutputContent>,
+    pub status: Option<String>,
+    pub role: Option<String>,
+    pub content: Option<Vec<OutputContent>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,4 +58,9 @@ pub struct OutputContent {
     pub type_field: String,
     pub text: String,
     pub annotations: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeltaData {
+    pub delta: String,
 }
