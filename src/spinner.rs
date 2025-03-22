@@ -29,7 +29,7 @@ pub fn start_spinner() -> (Arc<AtomicBool>, tokio::task::JoinHandle<()>) {
             " \n  🤖| \n /|  \n / \\",
             " \n  🤖/ \n /|  \n  \\",
             " \n  🤖  \n /|  \n  \\",
-            " \n  🤖  \n |\\ \n  \\",
+            " \n 🤖  \n |\\ \n  \\",
             " \n  🤖/ \n |\\ \n  /",
         ];
         let mut i = 0;

@@ -133,12 +133,12 @@ fn help_command() {
     println!("debug      - Prints debugging information for the current conversation.");
     println!("doc        - Documents the conversation using the chat client's document method.");
     println!("cm         - Changes the chat model.");
+    println!("rmr        - Launches rmr if installed in this machine's path.");
     println!("help       - Displays this help message.");
     println!("gf <path1> <path2> ...");
-    println!("          - Adds the content of specified files to the conversation context.");
-    println!("rmr        - Launches rmr if installed in this machine's path.");
+    println!("           - Adds the content of specified files to the conversation context.");
     println!("readme <directory> [extensions...]");
-    println!("          - Processes directory files into a README document.");
+    println!("           - Processes directory files into a README document.");
     println!();
 }
 
@@ -211,7 +211,7 @@ async fn document_command(
             .expect("Could not write to file");
         println!("\nDocument saved as '{}'\n", filename);
     } else {
-        println!("Document not saved.");
+        println!("Document not saved.\n");
     }
     Ok(())
 }
@@ -226,6 +226,12 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
         return Ok(());
     }
     let dir = args[0];
+
+    if !Path::new(dir).exists() {
+        eprintln!("\nDirectory '{}' not found.\n", dir);
+        return Ok(());
+    }
+
     let extensions: HashSet<&str> = if args.len() > 1 {
         args[1..].iter().copied().collect()
     } else {
