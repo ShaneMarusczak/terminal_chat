@@ -1,20 +1,22 @@
+use tokio::sync::Mutex;
+
 use crate::{
     chat_client::ChatClient,
+    commands_registry::{CommandContext, TC_COMMANDS},
     conversation::{ConversationContext, Message, Response},
     messages::MESSAGES,
 };
 use std::{
-    env,
     error::Error,
     fs::{self, File},
     io::{Write, stdin},
     path::Path,
-    process::Command,
+    sync::Arc,
 };
 
 const AVAILABLE_MODELS: &[&str] = &[
     "gpt-4o",
-    "gpt-4o-mini",
+    "gpt-4-mini",
     "gpt-4o-search-preview",
     "o1",
     "o3-mini",
@@ -22,78 +24,36 @@ const AVAILABLE_MODELS: &[&str] = &[
 
 pub async fn handle_command(
     cmd: &str,
-    context: &mut ConversationContext,
-    dev_message: &Message,
-    chat_client: &ChatClient,
+    context: Arc<Mutex<ConversationContext>>,
+    dev_message: Arc<Message>,
+    chat_client: Arc<ChatClient>,
 ) -> Result<(), Box<dyn Error>> {
-    let cmd = cmd.trim();
-    match cmd {
-        "clear" => clear_command(context, dev_message),
-        "debug" => debug_command(context),
-        "doc" => document_command(context, chat_client).await?,
-        "cm" => change_model_command(context),
-        "help" => help_command(),
-        "rmr" => start_rmr(),
-        _ => {
-            if cmd.starts_with("gf") {
-                gf_command(context, cmd);
-            } else if cmd.starts_with("readme") {
-                readme_command(chat_client, cmd).await?;
-            } else {
-                let main_cmd = cmd.split_whitespace().next().unwrap_or(cmd);
-                let commands = [
-                    "clear", "debug", "doc", "cm", "help", "rmr", "gf", "readme", "q", "quit",
-                ];
-                eprintln!("\nUnknown command: {main_cmd}");
+    let cmd_string = cmd.trim().to_owned();
+    let main_cmd = cmd_string.split_whitespace().next().unwrap().to_owned();
+    let args: Vec<String> = cmd_string
+        .split_whitespace()
+        .skip(1)
+        .map(|arg| arg.to_owned())
+        .collect();
 
-                let maybe = find_matching_word(main_cmd, &commands)?;
-                eprint!("Did you mean {}?\n\n", maybe);
-            }
-        }
+    let cc = CommandContext::new(
+        Arc::clone(&context),
+        Arc::clone(&dev_message),
+        Arc::clone(&chat_client),
+        main_cmd.clone(),
+        args,
+    );
+
+    if let Some(tc) = TC_COMMANDS.get(main_cmd.as_str()) {
+        (tc.run)(cc).await?;
+    } else {
+        eprintln!("\nUnknown command: {}", main_cmd);
+        let words: Vec<String> = TC_COMMANDS.keys().map(|key| key.to_string()).collect();
+        let maybe = find_matching_word(&main_cmd, words)?;
+        eprintln!("Did you mean {maybe}?\n");
     }
+
     Ok(())
-}
-
-fn start_rmr() {
-    if !is_executable_installed("rmr") {
-        eprintln!("rmr not found");
-        return;
-    }
-    Command::new("rmr").status().expect("rmr failed");
-    println!("\nleaving rmr...\n");
-    println!("back to tc...\n");
-}
-
-fn is_executable_installed(executable: &str) -> bool {
-    if let Ok(paths) = env::var("PATH") {
-        for path in env::split_paths(&paths) {
-            let full_path = path.join(executable);
-            if full_path.is_file() {
-                if let Ok(metadata) = fs::metadata(&full_path) {
-                    return !metadata.permissions().readonly();
-                }
-            }
-        }
-    }
-    false
-}
-
-fn clear_command(context: &mut ConversationContext, dev_message: &Message) {
-    context.input.clear();
-    context.input.push(dev_message.clone());
-    Command::new("clear")
-        .status()
-        .expect("clear command failed");
-    println!("\nConversation cleared.\n");
-}
-
-fn debug_command(context: &ConversationContext) {
-    println!("\nCurrent model: {}", context.model);
-    println!("\nCurrent context messages:\n");
-    for msg in &context.input {
-        println!("{}: {}\n", msg.role, msg.content);
-    }
-    println!();
 }
 
 fn change_model_command(context: &mut ConversationContext) {
@@ -375,14 +335,14 @@ fn extract_message_text(response: &Response) -> Option<String> {
     None
 }
 
-fn find_matching_word(word: &str, words: &[&str]) -> Result<String, String> {
+fn find_matching_word(word: &str, words: Vec<String>) -> Result<String, String> {
     let mut min_dist = 9999;
     let mut final_string = String::new();
     for w in words {
-        let distance = min_distance(w, word);
+        let distance = min_distance(&w, word);
         if distance < min_dist {
             min_dist = distance;
-            final_string = String::from(*w);
+            final_string = w;
         }
     }
     Ok(final_string)
