@@ -209,6 +209,10 @@ async fn help_command(_cc: CommandContext) -> CommandResult {
     for tc in TC_COMMANDS.values() {
         if tc.name.len() < 7 {
             println!("{:7} - {}", tc.name, tc.description);
+        } else {
+            let gap = " ".repeat(7);
+            println!("{}", tc.name);
+            println!("{gap} - {}", tc.description);
         }
     }
     println!();
