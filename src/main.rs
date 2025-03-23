@@ -69,43 +69,28 @@ async fn actually_chat(
     context: Arc<Mutex<ConversationContext>>,
     client: Arc<ChatClient>,
 ) -> Result<(), Box<dyn Error>> {
-    {
-        let mut locked = context.lock().await;
-        locked.input.push(Message {
-            role: "user".into(),
-            content: line.clone(),
-        });
-    }
+    let mut ctx = context.lock().await;
 
-    let model = {
-        let locked = context.lock().await;
-        locked.model.clone()
-    };
+    ctx.input.push(Message {
+        role: "user".into(),
+        content: line.clone(),
+    });
 
-    if model.eq_ignore_ascii_case("gpt-4o-search-preview") {
-        {
-            let mut locked = context.lock().await;
-            locked.set_stream(false);
-        }
-        let ctx = &context.lock().await;
-        let response = client.send_request_c(ctx).await?;
+    if ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
+        ctx.set_stream(false);
+        let response = client.send_request_c(&ctx).await?;
         if let Some(choice) = response.choices.first() {
             let reply = choice.message.content.clone();
             {
-                let mut locked = context.lock().await;
-                locked.input.push(Message {
+                ctx.input.push(Message {
                     role: "assistant".into(),
                     content: reply.clone(),
                 });
             }
             println!("\n🤖 {}\n", reply);
         }
-        {
-            let mut locked = context.lock().await;
-            locked.set_stream(true);
-        }
+        ctx.set_stream(true);
     } else {
-        let mut ctx = context.lock().await;
         client.stream(&mut ctx).await?;
     }
 

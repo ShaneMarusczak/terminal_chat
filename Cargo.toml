@@ -13,6 +13,7 @@ debug = false
 incremental = false
 
 [dependencies]
+walkdir = { version = "2.5.0", default-features = false }
 crossterm = { version = "0.28.1", default-features = false }
 futures-util = { version = "0.3.31", default-features = false }
 linefeed = { version = "0.6.0", default-features = false }
