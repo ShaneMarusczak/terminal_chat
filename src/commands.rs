@@ -231,7 +231,6 @@ async fn document_command(
 }
 
 use std::collections::HashSet;
-use walkdir::WalkDir;
 
 async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<dyn Error>> {
     let args = cmd.split_whitespace().skip(1).collect::<Vec<&str>>();
@@ -261,17 +260,49 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
 
     let mut names = vec![];
 
-    for entry in WalkDir::new(dir) {
+    // Directory traversal using std::fs directly in the readme_command function
+    for entry in fs::read_dir(dir)? {
         let entry = entry?;
-        if entry.file_type().is_file() && !entry.file_name().to_str().unwrap().starts_with('.') {
-            let path = entry.path();
-            let file_name = String::from(path.to_str().unwrap());
-            if extensions.is_empty()
-                || extensions.contains(path.extension().and_then(|ext| ext.to_str()).unwrap_or(""))
-            {
-                match fs::read_to_string(path) {
+        let path = entry.path();
+        if path.is_dir() {
+            // Recursively read files in the sub-directory
+            let sub_entries = fs::read_dir(&path)?;
+            for sub_entry in sub_entries {
+                let sub_entry = sub_entry?;
+                let sub_path = sub_entry.path();
+                if sub_path.is_file()
+                    && !sub_path
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with('.')
+                {
+                    let ext = sub_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    if extensions.is_empty() || extensions.contains(ext) {
+                        names.push(sub_path.display().to_string());
+                        match fs::read_to_string(&sub_path) {
+                            Ok(content) => {
+                                new_context.input.push(Message {
+                                    role: "user".to_string(),
+                                    content: format!(
+                                        "{}\n\n:::\n\n{}",
+                                        sub_path.display(),
+                                        content
+                                    ),
+                                });
+                            }
+                            Err(e) => eprintln!("Error reading {}: {}", sub_path.display(), e),
+                        }
+                    }
+                }
+            }
+        } else if path.is_file() && !path.file_name().unwrap().to_str().unwrap().starts_with('.') {
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if extensions.is_empty() || extensions.contains(ext) {
+                names.push(path.display().to_string());
+                match fs::read_to_string(&path) {
                     Ok(content) => {
-                        names.push(file_name);
                         new_context.input.push(Message {
                             role: "user".to_string(),
                             content: format!("{}\n\n:::\n\n{}", path.display(), content),
@@ -282,6 +313,7 @@ async fn readme_command(chat_client: &ChatClient, cmd: &str) -> Result<(), Box<d
             }
         }
     }
+
     println!("\nFiles used: {:?}\n\n", names);
     let response = chat_client.send_request(&new_context).await?;
 
