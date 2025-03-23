@@ -2,112 +2,125 @@
 
 [![Rust CI](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml)
 
-Terminal Chat is a command line chat interface built in Rust. It allows interactive, conversational sessions with OpenAI’s language models. Users can chat in real time with streaming responses or perform various commands (e.g., clearing conversations, debugging, document and README generation, and more). The project emphasizes concise, accurate communication and provides a friendly environment for both casual and development-related conversations.
+Terminal Chat is an interactive, terminal‐based chat application built with Rust. It allows you to have real-time conversations with OpenAI's API while leveraging various commands to manage and document sessions. The project is designed to be highly efficient, minimal, and provides a responsive command-line interface with an integrated spinner and auto-completion support.
 
 ---
 
 ## Features
 
-• Interactive CLI with real-time, streaming responses  
-• Multiple command support
-• Asynchronous networking with [reqwest](https://docs.rs/reqwest/) and [tokio](https://docs.rs/tokio/)  
-• File processing for documentation: the tool can scan directories and aggregate project files to generate comprehensive README documentation  
-• Built-in history and tab completion with [linefeed](https://docs.rs/linefeed/)
+• Real-time streaming chat support via asynchronous HTTP requests using Reqwest and Tokio
+• Command parser for extended functionality
+• Integrated spinner for visual feedback during long-running API calls
+• File-based context augmentation (upload file contents to chat context)
+• Automated documentation and report generation in Markdown
+• Modular design for easy future expansion
 
 ---
 
 ## Installation
 
-1. **Prerequisites**  
-   - Install [Rust](https://www.rust-lang.org/tools/install) (includes Cargo)  
-   - Set your OpenAI API key as an environment variable:  
-     - Linux/Mac: `export OPENAI_API_KEY=your_api_key_here`  
-     - Windows (PowerShell): `$env:OPENAI_API_KEY="your_api_key_here"`
+1. **Prerequisites**
 
-2. **Clone the Repository**  
-   Run:  
-   `git clone https://github.com/ShaneMaruszcak/terminal-chat.git`  
-   `cd terminal-chat`
+   - Rust (latest stable version; requires Rust 2024 edition)
+   - Cargo package manager
+   - An OpenAI API key – set your environment variable:
+     `export OPENAI_API_KEY=your_api_key_here`
 
-3. **Build the Project**  
-   Use Cargo to build in debug or release mode:  
-   - Debug: `cargo build`  
-   - Release: `cargo build --release`
+2. **Clone the repository**
 
-4. **Run the Application**  
-   Execute with Cargo:  
-   `cargo run --release`
+   Run the following commands:
+
+   $ git clone <repository_url>
+   $ cd terminal-chat
+
+3. **Build the project**
+
+   $ cargo build --release
+
+4. **Run the project**
+
+   $ cargo run --release
 
 ---
 
 ## Usage Guide
 
-• When the project is running, you will see a prompt:  
-  `🗣️ `  
-  - Simply type your message and press Enter to send.
+- **Chatting:**
+  Simply type your message at the prompt (🗣️). The application will send your input to the OpenAI API and stream the response in real-time.
 
-• **Chat Interaction**  
-   - Regular messages are sent directly to the chat service.  
-   - The assistant’s responses are shown in a streaming manner with a spinner.
+- **Commands:**
+  Commands are prefixed with a colon (`:`). Some common commands include:
 
-• **Commands**  
-   - Prefix any command with a colon (`:`).
-   - Run `:help` to see current commands.
+  • `:help` – Display this help and available commands
+  • `:clear` – Clears the current conversation context
+  • `:cm` – Change the active Chat model
+  • `:gf <file1> <file2> ...` – Add the contents of specified files to the conversation context
+  • `:readme <directory> [extensions...]` – Generate a README.md document based on files in a directory
+  • `:doc` – Document the current context into a Markdown report
+  • `:q` or `:quit` – Quit the application
 
-• **Exiting**  
-   - Type `:q` or `:quit` to exit the application.
+- **Tips:**
+
+  • If a command is unrecognized, the tool will suggest a similar command based on minimum edit distance.
+  • For commands that generate output files (such as readme and doc), follow the prompts to confirm the filename and save location.
 
 ---
 
 ## File and Structure Overview
 
-• **src/main.rs**  
-   - Contains the main entry point and command loop.  
-   - Sets up the interactive CLI using the [linefeed](https://docs.rs/linefeed/) crate.
+- **Cargo.toml**
+  Contains project metadata, version, compilation profiles (release optimizations, panic-abort, LTO), and dependency definitions.
 
-• **src/chat_client.rs**  
-   - Responsible for making HTTP requests to OpenAI API endpoints.  
-   - Implements both streaming and traditional request/response chat functions.
+- **src/main.rs**
+  Sets up the terminal interface using the `linefeed` crate, initializes the conversation context, and manages the main input loop.
 
-• **src/conversation.rs**  
-   - Defines conversation context, message structure, and response data types.  
-   - Manages message history and conversation state.
+- **src/chat_client.rs**
+  Implements the HTTP client that interacts with the OpenAI API.
+  Provides streaming and non-streaming request methods.
 
-• **src/commands.rs**  
-   - Implements support for chat and development commands (clear, debug, doc, change model, readme generation, etc.).  
-   - Handles file operations and document/report generation.
+- **src/conversation.rs**
+  Defines data structures for messages and conversation contexts.
+  Contains types for responses and helper functions to extract data.
 
-• **src/spinner.rs**  
-   - Provides a spinner animation while asynchronous operations (e.g., network requests) are in progress.
+- **src/commands_registry.rs & src/commands.rs**
+  Registers available commands (like clearing the conversation, model switching, document generation, etc.) and handles command parsing and execution.
 
-• **src/messages.rs**  
-   - Contains default messages and prompts that guide conversation and report generation.
+- **src/spinner.rs**
+  Provides a vibrant spinner animation using `crossterm` to indicate ongoing asynchronous operations.
+
+- **src/messages.rs**
+  Defines pre-set prompt messages for different operations (developer prompts, README generation, documentation requests, etc.)
 
 ---
 
 ## Configuration Details
 
-• **Environment Variable**  
-   - `OPENAI_API_KEY`: Must be set for the chat client to authenticate with the OpenAI API.
+• The project uses a custom release profile configured in Cargo.toml:
+  - `panic = "abort"`
+  - `lto = true`
+  - `opt-level = 'z'` (size optimizations)
+  - `codegen-units = 1`
+  - `strip = true`
+  - `debug = false`
+  - `incremental = false`
 
-• **Endpoints**  
-   - API requests are made to:  
-     `https://api.openai.com/v1/responses`  
-     `https://api.openai.com/v1/chat/completions`
+• Environment Variable:
+  Set `OPENAI_API_KEY` to your valid OpenAI API key.
 
-• **Async Runtime**  
-   - The project utilizes Tokio’s asynchronous runtime, as specified by the `[tokio::main]` attribute in `main.rs`.
+• API Endpoints:
+  - Standard API: `https://api.openai.com/v1/responses`
+  - Chat completions: `https://api.openai.com/v1/chat/completions`
 
 ---
 
 ## Contribution Guidelines
 
-Contributions are welcome! If you have ideas, feature enhancements, or bug fixes, please follow these steps:
+Contributions are welcome! Please follow these steps:
 
-1. Fork the repository.
-2. Create a new branch for your feature or fix.
-3. Commit your changes with clear, concise messages.
-4. Open a pull request describing your changes.
+1. Fork the repository and clone your fork.
+2. Create a new branch for your feature or bugfix.
+3. Ensure your code adheres to Rust coding best practices.
+4. Submit a pull request with detailed information about your changes.
 
 ---
 
@@ -117,4 +130,4 @@ This project is licensed under the terms specified in the [LICENSE](LICENSE) fil
 
 ---
 
-Happy chatting! Enjoy your interactive conversation with Terminal Chat.
+Happy chatting!
