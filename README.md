@@ -8,12 +8,12 @@ Terminal Chat is an interactive, terminal‐based chat application built with Ru
 
 ## Features
 
-• Real-time streaming chat support via asynchronous HTTP requests using Reqwest and Tokio
-• Command parser for extended functionality
-• Integrated spinner for visual feedback during long-running API calls
-• File-based context augmentation (upload file contents to chat context)
-• Automated documentation and report generation in Markdown
-• Modular design for easy future expansion
+- Real-time streaming chat support via asynchronous HTTP requests using Reqwest and Tokio
+- Command parser for extended functionality
+- Integrated spinner for visual feedback during long-running API calls
+- File-based context augmentation (upload file contents to chat context)
+- Automated documentation and report generation in Markdown
+- Modular design for easy future expansion
 
 ---
 
@@ -51,18 +51,18 @@ Terminal Chat is an interactive, terminal‐based chat application built with Ru
 - **Commands:**
   Commands are prefixed with a colon (`:`). Some common commands include:
 
-  • `:help` – Display this help and available commands
-  • `:clear` – Clears the current conversation context
-  • `:cm` – Change the active Chat model
-  • `:gf <file1> <file2> ...` – Add the contents of specified files to the conversation context
-  • `:readme <directory> [extensions...]` – Generate a README.md document based on files in a directory
-  • `:doc` – Document the current context into a Markdown report
-  • `:q` or `:quit` – Quit the application
+  - `:help` – Display this help and available commands
+  - `:clear` – Clears the current conversation context
+  - `:cm` – Change the active Chat model
+  - `:gf <file1> <file2> ...` – Add the contents of specified files to the conversation context
+  - `:readme <directory> [extensions...]` – Generate a README.md document based on files in a directory
+  - `:doc` – Document the current context into a Markdown report
+  - `:q` or `:quit` – Quit the application
 
 - **Tips:**
 
-  • If a command is unrecognized, the tool will suggest a similar command based on minimum edit distance.
-  • For commands that generate output files (such as readme and doc), follow the prompts to confirm the filename and save location.
+  - If a command is unrecognized, the tool will suggest a similar command based on minimum edit distance.
+  - For commands that generate output files (such as readme and doc), follow the prompts to confirm the filename and save location.
 
 ---
 
@@ -95,7 +95,7 @@ Terminal Chat is an interactive, terminal‐based chat application built with Ru
 
 ## Configuration Details
 
-• The project uses a custom release profile configured in Cargo.toml:
+- The project uses a custom release profile configured in Cargo.toml:
   - `panic = "abort"`
   - `lto = true`
   - `opt-level = 'z'` (size optimizations)
@@ -104,10 +104,10 @@ Terminal Chat is an interactive, terminal‐based chat application built with Ru
   - `debug = false`
   - `incremental = false`
 
-• Environment Variable:
+- Environment Variable:
   Set `OPENAI_API_KEY` to your valid OpenAI API key.
 
-• API Endpoints:
+- API Endpoints:
   - Standard API: `https://api.openai.com/v1/responses`
   - Chat completions: `https://api.openai.com/v1/chat/completions`
 
