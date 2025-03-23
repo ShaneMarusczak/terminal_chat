@@ -9,7 +9,7 @@ Terminal Chat is a command line chat interface built in Rust. It allows interact
 ## Features
 
 • Interactive CLI with real-time, streaming responses  
-• Multiple command support (clear, debug, change model, document, generate README, etc.)  
+• Multiple command support
 • Asynchronous networking with [reqwest](https://docs.rs/reqwest/) and [tokio](https://docs.rs/tokio/)  
 • File processing for documentation: the tool can scan directories and aggregate project files to generate comprehensive README documentation  
 • Built-in history and tab completion with [linefeed](https://docs.rs/linefeed/)
@@ -44,22 +44,15 @@ Terminal Chat is a command line chat interface built in Rust. It allows interact
 
 • When the project is running, you will see a prompt:  
   `🗣️ `  
-  Simply type your message and press Enter to send.
+  - Simply type your message and press Enter to send.
 
 • **Chat Interaction**  
    - Regular messages are sent directly to the chat service.  
    - The assistant’s responses are shown in a streaming manner with a spinner.
 
 • **Commands**  
-   Prefix any command with a colon (`:`). Examples include:  
-   - `:clear` – Clears the current conversation context.  
-   - `:debug` – Displays debugging information including current model and message history.  
-   - `:doc` – Generates a documentation report based on the conversation context.  
-   - `:cm` – Allows you to change the active chat model from a list of supported options.  
-   - `:help` – Displays available command usage and details.  
-   - `:gf <path1> <path2> ...` – Reads content from specified file paths and adds them to the conversation.  
-   - `:readme <directory> [extensions...]` – Processes files in a directory to generate a comprehensive README document.  
-   - `:rmr` – Launches an external executable (if installed) for extended functionality.
+   - Prefix any command with a colon (`:`).
+   - Run `:help` to see current commands.
 
 • **Exiting**  
    - Type `:q` or `:quit` to exit the application.
