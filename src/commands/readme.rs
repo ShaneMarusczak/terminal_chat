@@ -63,14 +63,12 @@ pub async fn readme_command(cc: CommandContext) -> CommandResult {
     let response = cc.chat_client.send_request(&new_context).await?;
 
     let result_content = if let Some(r) = extract_message_text(&response) {
-        r
+        r.replace("•", "-")
     } else {
         eprintln!("No content received from readme command.");
         return Ok(());
     };
     println!("{}", result_content);
-
-    println!("\nEnter the README file name to save (without extension): ");
     let sanitized_filename =
         read_user_input("\nEnter the README file name to save (without extension): ");
 

@@ -66,33 +66,6 @@ Terminal Chat is an interactive, terminal‐based chat application built with Ru
 
 ---
 
-## File and Structure Overview
-
-- **Cargo.toml**
-  Contains project metadata, version, compilation profiles (release optimizations, panic-abort, LTO), and dependency definitions.
-
-- **src/main.rs**
-  Sets up the terminal interface using the `linefeed` crate, initializes the conversation context, and manages the main input loop.
-
-- **src/chat_client.rs**
-  Implements the HTTP client that interacts with the OpenAI API.
-  Provides streaming and non-streaming request methods.
-
-- **src/conversation.rs**
-  Defines data structures for messages and conversation contexts.
-  Contains types for responses and helper functions to extract data.
-
-- **src/commands_registry.rs & src/commands.rs**
-  Registers available commands (like clearing the conversation, model switching, document generation, etc.) and handles command parsing and execution.
-
-- **src/spinner.rs**
-  Provides a vibrant spinner animation using `crossterm` to indicate ongoing asynchronous operations.
-
-- **src/messages.rs**
-  Defines pre-set prompt messages for different operations (developer prompts, README generation, documentation requests, etc.)
-
----
-
 ## Configuration Details
 
 - The project uses a custom release profile configured in Cargo.toml:
