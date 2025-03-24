@@ -2,7 +2,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     chat_client::ChatClient,
-    commands_registry::{CommandContext, TC_COMMANDS},
+    commands::{command_context::CommandContext, commands_registry::TC_COMMANDS},
     conversation::{ConversationContext, Message},
 };
 use std::{error::Error, sync::Arc};
@@ -13,13 +13,10 @@ pub async fn handle_command(
     dev_message: Arc<Message>,
     chat_client: Arc<ChatClient>,
 ) -> Result<(), Box<dyn Error>> {
-    let cmd_string = cmd.trim().to_owned();
-    let main_cmd = cmd_string.split_whitespace().next().unwrap().to_owned();
-    let args: Vec<String> = cmd_string
-        .split_whitespace()
-        .skip(1)
-        .map(|arg| arg.to_owned())
-        .collect();
+    let cmd_string = cmd.trim();
+    let mut parts = cmd_string.split_whitespace();
+    let main_cmd = parts.next().ok_or("No command provided")?.to_owned();
+    let args: Vec<String> = parts.map(String::from).collect();
 
     let cc = CommandContext::new(
         Arc::clone(&context),
@@ -43,16 +40,11 @@ pub async fn handle_command(
 }
 
 fn find_matching_word(word: &str, words: Vec<String>) -> Result<String, String> {
-    let mut min_dist = 9999;
-    let mut final_string = String::new();
-    for w in words {
-        let distance = min_distance(&w, word);
-        if distance < min_dist {
-            min_dist = distance;
-            final_string = w;
-        }
-    }
-    Ok(final_string)
+    words
+        .iter()
+        .min_by_key(|w| min_distance(w, word))
+        .cloned()
+        .ok_or_else(|| "No suggestions available".to_string())
 }
 
 fn min_distance(word1: &str, word2: &str) -> i32 {

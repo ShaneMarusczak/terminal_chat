@@ -1,16 +1,16 @@
+use commands::handle_commands::handle_command;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
 use std::{error::Error, sync::Arc};
 use tokio::sync::Mutex;
 
 mod chat_client;
 mod commands;
-mod commands_registry;
 mod conversation;
 mod messages;
 mod spinner;
+mod utils;
 
 use chat_client::ChatClient;
-use commands::handle_command;
 use conversation::{ConversationContext, Message};
 use messages::MESSAGES;
 

@@ -38,7 +38,10 @@ pub fn start_spinner() -> (Arc<AtomicBool>, tokio::task::JoinHandle<()>) {
                 "\r\x1b[2K\x1b[36m{}\x1b[0m",
                 spinner_states[i % spinner_states.len()]
             );
-            stdout().execute(cursor::MoveUp(3)).unwrap();
+            if let Err(e) = stdout().execute(cursor::MoveUp(3)) {
+                eprintln!("Error moving cursor up: {}", e);
+                break;
+            }
             let _ = stdout().flush();
             i += 1;
             sleep(Duration::from_millis(150)).await;
@@ -46,9 +49,14 @@ pub fn start_spinner() -> (Arc<AtomicBool>, tokio::task::JoinHandle<()>) {
 
         for _ in 0..4 {
             print!("\r\x1b[2K"); // Clear current line
-            stdout().execute(cursor::MoveDown(1)).unwrap();
+            if let Err(e) = stdout().execute(cursor::MoveDown(1)) {
+                eprintln!("Error moving cursor down: {}", e);
+                break;
+            }
         }
-        stdout().execute(cursor::MoveUp(3)).unwrap();
+        if let Err(e) = stdout().execute(cursor::MoveUp(3)) {
+            eprintln!("Error moving cursor up: {}", e);
+        }
     });
     (spinner_running, handle)
 }
