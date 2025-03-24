@@ -60,7 +60,7 @@ pub async fn readme_command(cc: CommandContext) -> CommandResult {
     }
 
     println!("\nFiles used: {:?}\n\n", names);
-    let response = cc.chat_client.send_request(&new_context).await?;
+    let response = cc.chat_client.send_request("d", &new_context).await?;
 
     let result_content = if let Some(r) = extract_message_text(&response) {
         r.replace("•", "-")

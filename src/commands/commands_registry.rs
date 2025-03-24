@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::LazyLock};
 use crate::commands::{
     change_model::change_model_command, clear::clear_command, command_tc::CommandTC,
     debug::debug_command, document::document_command, gf::gf_command, help::help_command,
-    quit::quit_command, readme::readme_command, start_rmr::start_rmr,
+    image::image_command, quit::quit_command, readme::readme_command, start_rmr::start_rmr,
 };
 
 macro_rules! register_command {
@@ -70,6 +70,12 @@ pub static TC_COMMANDS: LazyLock<HashMap<&str, CommandTC>> = LazyLock::new(|| {
         "quit",
         "Quits this program. Also 'q'.",
         quit_command
+    );
+    register_command!(
+        registry,
+        "image",
+        "Generates an image and returns its URL.",
+        image_command
     );
 
     registry

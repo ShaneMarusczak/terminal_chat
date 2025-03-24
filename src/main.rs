@@ -11,7 +11,7 @@ mod spinner;
 mod utils;
 
 use chat_client::ChatClient;
-use conversation::{ConversationContext, Message};
+use conversation::{ConversationContext, Message, ResponseC};
 use messages::MESSAGES;
 
 #[tokio::main]
@@ -78,7 +78,7 @@ async fn actually_chat(
 
     if ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
         ctx.set_stream(false);
-        let response = client.send_request_c(&ctx).await?;
+        let response: ResponseC = client.send_request("chat", &*ctx).await?;
         if let Some(choice) = response.choices.first() {
             let reply = choice.message.content.clone();
             {

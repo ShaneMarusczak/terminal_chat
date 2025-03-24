@@ -7,13 +7,14 @@ use std::{
 };
 
 use crate::{
-    conversation::{ConversationContext, DeltaData, Message, Response, ResponseC},
+    conversation::{ConversationContext, DeltaData, Message},
     spinner::run_with_spinner,
 };
 use futures_util::StreamExt;
 
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const API_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
+const API_IMG_URL: &str = "https://api.openai.com/v1/images/generations";
 
 pub struct ChatClient {
     client: Client,
@@ -70,44 +71,25 @@ impl ChatClient {
         Ok(())
     }
 
-    pub async fn send_request_c(
-        &self,
-        context: &ConversationContext,
-    ) -> Result<ResponseC, Box<dyn Error>> {
-        let request_json = serde_json::to_string(context)?;
-        let replaced = request_json.replace("\"input\":", "\"messages\":");
+    pub async fn send_request<F, T>(&self, url_flag: &str, context: F) -> Result<T, Box<dyn Error>>
+    where
+        F: serde::Serialize,
+        T: serde::de::DeserializeOwned,
+    {
+        let mut request_json = serde_json::to_string(&context)?;
+        if url_flag == "chat" {
+            request_json = request_json.replace("\"input\":", "\"messages\":");
+        }
+        let url = match url_flag {
+            "chat" => API_CHAT_URL,
+            "image" => API_IMG_URL,
+            _ => API_URL,
+        };
+
         let response_text = run_with_spinner(async {
             self.client
-                .post(API_CHAT_URL)
+                .post(url)
                 .bearer_auth(&self.api_key)
-                .header("Content-Type", "application/json")
-                .body(replaced)
-                .send()
-                .await?
-                .text()
-                .await
-        })
-        .await?;
-
-        // Clear the spinner from stdout
-        print!("\r                \r");
-        stdout().flush().ok();
-        let resp: ResponseC = from_str(&response_text)
-            .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
-
-        Ok(resp)
-    }
-
-    pub async fn send_request(
-        &self,
-        context: &ConversationContext,
-    ) -> Result<Response, Box<dyn Error>> {
-        let request_json = serde_json::to_string(context)?;
-
-        let response_text = run_with_spinner(async {
-            self.client
-                .post(API_URL)
-                .header("Authorization", format!("Bearer {}", self.api_key))
                 .header("Content-Type", "application/json")
                 .body(request_json)
                 .send()
@@ -121,7 +103,7 @@ impl ChatClient {
         print!("\r                \r");
         stdout().flush().ok();
 
-        let resp: Response = from_str(&response_text)
+        let resp: T = from_str(&response_text)
             .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
 
         Ok(resp)

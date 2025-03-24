@@ -8,6 +8,7 @@ pub mod document;
 pub mod gf;
 pub mod handle_commands;
 pub mod help;
+pub mod image;
 pub mod quit;
 pub mod readme;
 pub mod start_rmr;
