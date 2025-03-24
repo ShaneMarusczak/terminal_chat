@@ -9,3 +9,9 @@ https://platform.openai.com/docs/api-reference/audio/createSpeech
 
 
 Try structured outputs and function calling
+
+Experiment with a project refactorer. Give all relevant code files.
+Prompt the model to deside things like separation of concerns.
+What could should go where. Ask it to ouline src directory.
+See if the model can generate all the shell commands to.
+Take me from where I am to where you think I should be. (Long shot)
