@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::LazyLock};
 use crate::commands::{
     change_model::change_model_command, clear::clear_command, command_tc::CommandTC,
     debug::debug_command, document::document_command, gf::gf_command, help::help_command,
-    image::image_command, quit::quit_command, readme::readme_command, start_rmr::start_rmr,
+    image::image_command, quit::quit_command, readme::readme_command, sh,
 };
 
 macro_rules! register_command {
@@ -28,7 +28,6 @@ pub static TC_COMMANDS: LazyLock<HashMap<&str, CommandTC>> = LazyLock::new(|| {
         "Clears the conversation context.",
         clear_command
     );
-    register_command!(registry, "rmr", "Launches rmr if installed.", start_rmr);
     register_command!(
         registry,
         "debug",
@@ -78,5 +77,11 @@ pub static TC_COMMANDS: LazyLock<HashMap<&str, CommandTC>> = LazyLock::new(|| {
         image_command
     );
 
+    register_command!(
+        registry,
+        "sh",
+        "Executes a program with arguments. Usage: sh <program> [args...]",
+        sh::sh
+    );
     registry
 });

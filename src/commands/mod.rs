@@ -11,6 +11,6 @@ pub mod help;
 pub mod image;
 pub mod quit;
 pub mod readme;
-pub mod start_rmr;
+pub mod sh;
 
 pub type CommandResult = Result<(), Box<dyn std::error::Error>>;
