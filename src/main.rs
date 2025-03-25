@@ -41,13 +41,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             match cmd {
                 "q" | "quit" => break,
                 _ => {
-                    handle_command(
+                    if let Err(e) = handle_command(
                         cmd,
                         Arc::clone(&context),
                         Arc::clone(&dev_message),
                         Arc::clone(&chat_client),
                     )
-                    .await?;
+                    .await
+                    {
+                        eprintln!("Error executing command: {} With error: {}", cmd, e);
+                    }
                 }
             }
         } else {
