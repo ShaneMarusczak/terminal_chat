@@ -28,7 +28,7 @@ pub async fn handle_command(
 
     if let Some(tc) = TC_COMMANDS.get(main_cmd.as_str()) {
         //This line was fun to write
-        (tc.run)(cc).await?;
+        (tc.run)(Some(cc)).await?;
     } else {
         eprintln!("\nUnknown command: {}", main_cmd);
         let words: Vec<String> = TC_COMMANDS.keys().map(|key| key.to_string()).collect();

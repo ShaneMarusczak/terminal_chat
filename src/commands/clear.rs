@@ -1,18 +1,20 @@
 use crate::commands::command_context::CommandContext;
 use std::process::Command;
 
-use super::CommandResult;
+use crate::commands::command_tc::CommandResult;
 
-pub async fn clear_command(cc: CommandContext) -> CommandResult {
+pub async fn clear_command(cc: Option<CommandContext>) -> CommandResult {
     {
-        let mut ctx = cc.conversation_context.lock().await;
-        ctx.input.clear();
-        ctx.input.push((*cc.dev_message).clone());
-    } // release lock
+        if let Some(cc) = cc {
+            let mut ctx = cc.conversation_context.lock().await;
+            ctx.input.clear();
+            ctx.input.push((*cc.dev_message).clone());
+        } // release lock
 
-    Command::new("clear")
-        .status()
-        .expect("clear command failed");
-    println!("\nConversation cleared.\n");
+        Command::new("clear")
+            .status()
+            .expect("clear command failed");
+        println!("\nConversation cleared.\n");
+    }
     Ok(())
 }

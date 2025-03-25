@@ -1,7 +1,7 @@
 use crate::commands::command_context::CommandContext;
 
-use super::CommandResult;
+use crate::commands::command_tc::CommandResult;
 
-pub async fn quit_command(_cc: CommandContext) -> CommandResult {
+pub async fn quit_command(_cc: Option<CommandContext>) -> CommandResult {
     unreachable!()
 }
