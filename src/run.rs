@@ -109,6 +109,12 @@ pub(crate) async fn as_cli_tool(args: &[String]) -> Result<(), Box<dyn Error>> {
             }
         },
         _ => {
+            // make readme a cli command that takes the same args as in the repl
+            // dir and extension
+            //
+            // summarize? takes any single file?
+            //
+            //
             // Handle cases where args.len() is not 1
         }
     }

@@ -79,10 +79,6 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
         }
 
         let final_name = format!("readmes/{}.md", sanitized_filename);
-        println!(
-            "\nDo you want to save this document as '{}.md'? (y/n): ",
-            sanitized_filename
-        );
 
         if confirm_action(&format!(
             "\nDo you want to save this document as '{}.md'? (y/n): ",
