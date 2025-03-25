@@ -4,6 +4,7 @@ mod chat_client;
 mod commands;
 mod conversation;
 mod messages;
+mod preview_md;
 mod run;
 mod spinner;
 mod utils;
