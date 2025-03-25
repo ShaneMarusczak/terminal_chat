@@ -1,12 +1,7 @@
 todos:
 
-Add the ability to prompt for an image and then open the url in the browser
-https://platform.openai.com/docs/api-reference/images
-
-
 Add the ability to prompt for a voice and then play the mp3 and then offer to save it
 https://platform.openai.com/docs/api-reference/audio/createSpeech
-
 
 Try structured outputs and function calling
 
@@ -15,3 +10,6 @@ Prompt the model to deside things like separation of concerns.
 What could should go where. Ask it to ouline src directory.
 See if the model can generate all the shell commands to.
 Take me from where I am to where you think I should be. (Long shot)
+
+make gf take a dir and then optional extensions like readme
+add many files to context at the same time
