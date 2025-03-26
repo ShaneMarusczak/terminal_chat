@@ -1,6 +1,7 @@
 use crate::commands::command_context::CommandContext;
 use crate::conversation::{ConversationContext, Message};
 use crate::messages::MESSAGES;
+use crate::preview_md::preview_markdown;
 use crate::utils::{confirm_action, extract_message_text, read_user_input};
 use std::collections::HashSet;
 use std::fs::{self, File};
@@ -69,7 +70,8 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
             eprintln!("No content received from readme command.");
             return Ok(());
         };
-        println!("{}", result_content);
+
+        preview_markdown(&result_content);
         let sanitized_filename =
             read_user_input("\nEnter the README file name to save (without extension): ");
 

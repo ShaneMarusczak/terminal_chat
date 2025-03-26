@@ -1,5 +1,6 @@
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
+use crate::preview_md::markdown_to_ansi;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
 use std::{error::Error, sync::Arc};
 use tokio::sync::Mutex;
@@ -84,7 +85,8 @@ async fn actually_chat(
                     content: reply.clone(),
                 });
             }
-            println!("\n🤖 {}\n", reply);
+            let s = markdown_to_ansi(&reply);
+            println!("\n🤖 {}\n", s);
         }
         ctx.set_stream(true);
     } else {

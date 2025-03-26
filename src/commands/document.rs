@@ -1,6 +1,7 @@
 use crate::commands::command_context::CommandContext;
 use crate::conversation::{ConversationContext, Message};
 use crate::messages::MESSAGES;
+use crate::preview_md::preview_markdown;
 use crate::utils::{confirm_action, extract_message_text};
 use std::fs::{self, File};
 use std::io::Write;
@@ -54,7 +55,8 @@ pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
 
         let filename = format!("reports/{}.md", sanitized_title);
         let file_contents = format!("{}\n\n{}", title, report);
-        println!("\n{}", file_contents);
+
+        preview_markdown(&file_contents);
 
         if confirm_action(&format!(
             "\nDo you want to save this document as '{}'? (y/n): ",

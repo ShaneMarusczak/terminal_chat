@@ -1,4 +1,4 @@
-use pulldown_cmark::{Alignment, CodeBlockKind, Event, LinkType, Options, Parser, Tag};
+use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag};
 
 fn ansi_bold_on() -> &'static str {
     "\x1b[1m"
@@ -28,13 +28,13 @@ fn ansi_reset() -> &'static str {
     "\x1b[0m"
 }
 
-pub(crate) fn preview_md(md_str: &str) {
+pub(crate) fn preview_markdown(md_str: &str) {
     let s = markdown_to_ansi(md_str);
     println!("{s}");
 }
 
 /// Converts a Markdown string into styled ANSI text.
-fn markdown_to_ansi(markdown: &str) -> String {
+pub(crate) fn markdown_to_ansi(markdown: &str) -> String {
     let parser = Parser::new_ext(markdown, Options::all());
     let mut output = String::new();
 
@@ -47,7 +47,7 @@ fn markdown_to_ansi(markdown: &str) -> String {
             // Text
             Event::Text(text) => {
                 // If we're in a heading, color or style accordingly
-                if heading_level >= 1 && heading_level <= 6 {
+                if (1..=6).contains(&heading_level) {
                     output.push_str(&format!("\x1b[1;3{}m{}\x1b[0m", heading_level, text));
                 } else {
                     output.push_str(&text);
@@ -90,7 +90,7 @@ fn markdown_to_ansi(markdown: &str) -> String {
                 }
                 Tag::BlockQuote => {
                     // We can prefix blockquotes with >
-                    output.push_str(&format!("\n\x1b[90m>\x1b[0m "));
+                    output.push_str("\n\x1b[90m>\x1b[0m ");
                 }
                 Tag::CodeBlock(kind) => {
                     // For code blocks, add a color
