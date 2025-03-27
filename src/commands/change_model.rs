@@ -7,7 +7,7 @@ pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
         let mut ctx = cc.conversation_context.lock().await;
         const AVAILABLE_MODELS: &[&str] = &[
             "gpt-4o",
-            "gpt-4-mini",
+            "gpt-4o-mini",
             "gpt-4o-search-preview",
             "o1",
             "o3-mini",
