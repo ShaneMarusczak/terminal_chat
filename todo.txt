@@ -13,3 +13,43 @@ Take me from where I am to where you think I should be. (Long shot)
 
 make gf take a dir and then optional extensions like readme
 add many files to context at the same time
+
+offer to push code to the clipboard? parse the ``` ```
+
+improve the markdown highlighting, make newlines better
+
+improve CLI use, accept pipe input
+-a --ask - takes input as an arg and prints the answer. basically a single message chat
+-r --readme - same as in repl
+-i --image - same as in repl
+
+store conversations, restore previous conversations
+
+add the ability to see costs
+
+customizable developer prompt
+
+Claude?
+
+improve styling of menus
+
+get into homebrew
+
+logo creator - given the project dir make a logo
+
+command autocomplete?
+
+if you type a command without a :,
+try to run the line (maybe a variable)
+but print "Was that a command?"
+
+offer to print document. save as md or txt and send to lp
+
+themes
+
+make a 'self-correct' mode. prompt a different model
+with the models output
+
+give the model the ability to freely read in a given directory
+
+make streaming optional
