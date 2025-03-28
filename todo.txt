@@ -53,3 +53,5 @@ with the models output
 give the model the ability to freely read in a given directory
 
 make streaming optional
+
+add the ability to paste in api key for a session
