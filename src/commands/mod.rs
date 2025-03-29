@@ -9,6 +9,8 @@ pub mod gf;
 pub mod handle_commands;
 pub mod help;
 pub mod image;
+pub mod load_conversation;
 pub mod quit;
 pub mod readme;
+pub mod save_conversation;
 pub mod sh;

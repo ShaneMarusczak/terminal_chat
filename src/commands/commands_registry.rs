@@ -3,7 +3,8 @@ use std::{collections::HashMap, sync::LazyLock};
 use crate::commands::{
     change_model::change_model_command, clear::clear_command, command_tc::CommandTC,
     debug::debug_command, document::document_command, gf::gf_command, help::help_command,
-    image::image_command, quit::quit_command, readme::readme_command, sh,
+    image::image_command, load_conversation::lc_command, quit::quit_command,
+    readme::readme_command, save_conversation::sc_command, sh,
 };
 
 macro_rules! register_command {
@@ -21,6 +22,20 @@ macro_rules! register_command {
 
 pub static TC_COMMANDS: LazyLock<HashMap<&str, CommandTC>> = LazyLock::new(|| {
     let mut registry = HashMap::new();
+
+    register_command!(
+        registry,
+        "lc",
+        "Loads a conversation from the conversations directory.",
+        lc_command
+    );
+
+    register_command!(
+        registry,
+        "sc",
+        "Saves the current conversation as JSON.",
+        sc_command
+    );
 
     register_command!(
         registry,

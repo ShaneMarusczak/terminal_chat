@@ -6,7 +6,7 @@ pub struct Message {
     pub content: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ConversationContext {
     pub model: String,
     pub input: Vec<Message>,
