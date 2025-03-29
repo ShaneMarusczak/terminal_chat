@@ -16,10 +16,7 @@ echo
 git status
 echo
 
-git --no-pager diff
-echo
-
-echo "Continue? y/n"
+echo "Continue? y/n -- will add . and commit"
 read -r confirm
 
 if [ "$confirm" != "y" ]; then
@@ -29,7 +26,9 @@ fi
 
 git add .
 
-# Prompt for commit message to ensure a meaningful commit
+git --no-pager diff
+echo
+
 echo "Enter commit message: "
 read -r commit_message
 git commit -m "$commit_message"
