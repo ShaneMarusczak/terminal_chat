@@ -23,8 +23,6 @@ improve CLI use, accept pipe input
 -r --readme - same as in repl
 -i --image - same as in repl
 
-store conversations, restore previous conversations
-
 add the ability to see costs
 
 customizable developer prompt
@@ -55,3 +53,5 @@ give the model the ability to freely read in a given directory
 make streaming optional
 
 add the ability to paste in api key for a session
+
+.tc_config to load the users prefered settings
