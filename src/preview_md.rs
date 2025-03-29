@@ -1,4 +1,4 @@
-use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag};
+use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 fn ansi_bold_on() -> &'static str {
     "\x1b[1m"
@@ -83,13 +83,24 @@ pub(crate) fn markdown_to_ansi(markdown: &str) -> String {
                 Tag::Strikethrough => {
                     output.push_str(ansi_strikethrough_on());
                 }
-                Tag::Heading(level) => {
-                    heading_level = level as usize;
-                    // Optionally push bold/underline for headings
+                Tag::Heading {
+                    level,
+                    id: _,
+                    classes: _,
+                    attrs: _,
+                } => {
+                    heading_level = match level {
+                        HeadingLevel::H1 => 1,
+                        HeadingLevel::H2 => 2,
+                        HeadingLevel::H3 => 3,
+                        HeadingLevel::H4 => 4,
+                        HeadingLevel::H5 => 5,
+                        HeadingLevel::H6 => 6,
+                    };
                     output.push_str(ansi_bold_on());
                 }
-                Tag::BlockQuote => {
-                    // We can prefix blockquotes with >
+                Tag::BlockQuote(_) => {
+                    // Handle different kinds if necessary
                     output.push_str("\n\x1b[90m>\x1b[0m ");
                 }
                 Tag::CodeBlock(kind) => {
@@ -110,28 +121,27 @@ pub(crate) fn markdown_to_ansi(markdown: &str) -> String {
                     output.push('\n');
                 }
                 Tag::Item => {
-                    // If we're in a bulleted list, show "* ", or show the number if it's an ordered list
-                    if let Some(Some(num)) = list_stack.last() {
-                        // Ordered list
-                        output.push_str(&format!("{}. ", num));
-                        // Increment for the next item
-                        if let Some(last) = list_stack.clone().last_mut() {
-                            *last = Some(num + 1);
-                        }
-                    } else {
-                        // Bulleted list
-                        output.push_str("* ");
-                    }
+                    output.push_str("* ");
                 }
-                Tag::Link(_link_type, dest, _title) => {
+                Tag::Link {
+                    link_type: _,
+                    dest_url,
+                    title: _,
+                    id: _,
+                } => {
                     // Underline links
                     output.push_str(ansi_underline_on());
                     // Optionally display the URL after: "[text](dest)"
-                    output.push_str(&format!("(Link: {}) ", dest));
+                    output.push_str(&format!("(Link: {}) ", dest_url));
                 }
-                Tag::Image(_link_type, src, _title) => {
+                Tag::Image {
+                    link_type: _,
+                    dest_url,
+                    title: _,
+                    id: _,
+                } => {
                     // Just show the source in parentheses
-                    output.push_str(&format!("(Image: {})", src));
+                    output.push_str(&format!("(Image: {})", dest_url));
                 }
                 Tag::FootnoteDefinition(name) => {
                     output.push_str(&format!("[Footnote: {}]", name));
@@ -146,50 +156,51 @@ pub(crate) fn markdown_to_ansi(markdown: &str) -> String {
             },
             // End of a tag
             Event::End(tag) => match tag {
-                Tag::Strong => {
+                TagEnd::Strong => {
                     output.push_str(ansi_bold_off());
                 }
-                Tag::Emphasis => {
+                TagEnd::Emphasis => {
                     output.push_str(ansi_italic_off());
                 }
-                Tag::Strikethrough => {
+                TagEnd::Strikethrough => {
                     output.push_str(ansi_strikethrough_off());
                 }
-                Tag::Heading(_) => {
+                TagEnd::Heading(_) => {
                     heading_level = 0;
                     output.push_str(ansi_bold_off());
                     output.push('\n');
                 }
-                Tag::BlockQuote => {
-                    output.push('\n');
+                TagEnd::BlockQuote(_) => {
+                    // currently ignoring 'kind'
+                    output.push_str("\n\x1b[90m>\x1b[0m ");
                 }
-                Tag::CodeBlock(_) => {
+                TagEnd::CodeBlock => {
                     output.push_str(ansi_reset());
                     output.push('\n');
                 }
-                Tag::List(_) => {
+                TagEnd::List(_) => {
                     list_stack.pop();
                     output.push('\n');
                 }
-                Tag::Item => {
+                TagEnd::Item => {
                     output.push('\n');
                 }
-                Tag::Link(_, _, _) => {
+                TagEnd::Link => {
                     // Close underline
                     output.push_str(ansi_underline_off());
                 }
-                Tag::Image(_, _, _) => {}
-                Tag::Table(_) => {
+                TagEnd::Image => {}
+                TagEnd::Table => {
                     output.push_str("\x1b[0m\n"); // reset style
                 }
-                Tag::TableHead => {}
-                Tag::TableRow => {
+                TagEnd::TableHead => {}
+                TagEnd::TableRow => {
                     output.push('\n');
                 }
-                Tag::TableCell => {
+                TagEnd::TableCell => {
                     output.push('\t');
                 }
-                Tag::FootnoteDefinition(_) => {}
+                TagEnd::FootnoteDefinition => {}
                 _ => {}
             },
             // HTML or footnotes – we ignore or handle them plainly
@@ -205,6 +216,7 @@ pub(crate) fn markdown_to_ansi(markdown: &str) -> String {
                 let mark = if is_checked { "[x] " } else { "[ ] " };
                 output.push_str(mark);
             }
+            _ => {}
         }
     }
 
