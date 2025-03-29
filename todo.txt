@@ -55,3 +55,7 @@ make streaming optional
 add the ability to paste in api key for a session
 
 .tc_config to load the users prefered settings
+on load, if no config, walk the user through it?
+Do you want streaming for eligible models?
+Do you want responses pretty printed as markdown?
+Which theme do you want?

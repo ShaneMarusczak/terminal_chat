@@ -1,22 +1,29 @@
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
 use crate::preview_md::markdown_to_ansi;
+use crate::tc_config::{self, ConfigTC};
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
 use std::{error::Error, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::chat_client::ChatClient;
 use crate::conversation::{ConversationContext, Message, ResponseC};
-use crate::messages::MESSAGES;
 
 pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
     println!("\n-- terminal chat -- \n");
 
-    let context = Arc::new(Mutex::new(ConversationContext::new("gpt-4o-mini", true)));
+    let config = tc_config::load_config();
+
+    let context = Arc::new(Mutex::new(ConversationContext::new(
+        &config.model,
+        config.enable_streaming,
+    )));
+
     let dev_message = Arc::new(Message {
         role: "developer".into(),
-        content: MESSAGES["developer"].to_string(),
+        content: config.dev_message,
     });
+
     let chat_client = Arc::new(ChatClient::new()?);
     let interface = build_interface()?;
 
@@ -48,7 +55,13 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
                 }
             }
         } else {
-            actually_chat(line, Arc::clone(&context), Arc::clone(&chat_client)).await?;
+            actually_chat(
+                line,
+                Arc::clone(&context),
+                Arc::clone(&chat_client),
+                config.enable_streaming,
+            )
+            .await?;
         }
     }
 
@@ -66,6 +79,7 @@ async fn actually_chat(
     line: String,
     context: Arc<Mutex<ConversationContext>>,
     client: Arc<ChatClient>,
+    enable_streaming: bool,
 ) -> Result<(), Box<dyn Error>> {
     let mut ctx = context.lock().await;
 
@@ -74,7 +88,7 @@ async fn actually_chat(
         content: line.clone(),
     });
 
-    if ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
+    if !enable_streaming || ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
         ctx.set_stream(false);
         let response: ResponseC = client.send_request("chat", &*ctx).await?;
         if let Some(choice) = response.choices.first() {
