@@ -23,8 +23,6 @@ improve CLI use, accept pipe input
 -r --readme - same as in repl
 -i --image - same as in repl
 
-store conversations, restore previous conversations
-
 add the ability to see costs
 
 customizable developer prompt
