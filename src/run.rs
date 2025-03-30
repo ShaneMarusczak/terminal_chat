@@ -1,7 +1,7 @@
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
 use crate::preview_md::markdown_to_ansi;
-use crate::tc_config::{self, ConfigTC};
+use crate::tc_config;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
 use std::{error::Error, sync::Arc};
 use tokio::sync::Mutex;

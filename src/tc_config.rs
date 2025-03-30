@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::fs::File;
+use std::{fs::File, io::stdin};
 
-use crate::{commands::change_model::AVAILABLE_MODELS, messages::MESSAGES};
+use crate::{commands::change_model::AVAILABLE_MODELS, messages::MESSAGES, utils::confirm_action};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct ConfigTC {
@@ -27,7 +27,7 @@ fn default_dev_message() -> String {
 }
 
 fn default_streaming() -> bool {
-    true
+    false
 }
 
 pub fn load_config() -> ConfigTC {
@@ -48,12 +48,57 @@ pub fn load_config() -> ConfigTC {
                 ConfigTC::default()
             }
         }
-    } else {
-        //if not found offer to walk the user through a guided set up and then save to json, and use it
+    } else if confirm_action("No config file found. Would you like to set one up? (y/n)") {
+        let mut config = ConfigTC::default();
+        println!("\nAvailable models:");
+        for (i, model) in AVAILABLE_MODELS.iter().enumerate() {
+            println!("{}) {}", i + 1, model);
+        }
+        println!("\nPlease select a model by typing its number:");
+        let mut model_choice = String::new();
+        stdin()
+            .read_line(&mut model_choice)
+            .expect("failed to read line");
 
-        println!("Config file not found. Using default values.");
-        ConfigTC::default() // Return default if file not found
+        match model_choice.trim().parse::<usize>() {
+            Ok(num) if num > 0 && num <= AVAILABLE_MODELS.len() => {
+                config.model = AVAILABLE_MODELS[num - 1].to_string();
+            }
+            _ => {
+                eprintln!(
+                    "Invalid selection. Using default model: {}",
+                    default_model()
+                );
+                config.model = default_model();
+            }
+        }
+
+        config.enable_streaming = confirm_action(
+            "Would you like to enable streaming for eligible models (experimental)? (y/n)",
+        );
+
+        config.preview_md = confirm_action(
+            "Would you like to display non-streamed model responses as rendered markdown (experimental)? (y/n)",
+        );
+
+        if confirm_action("Would you like to write a custom developer message for the AI? (y/n)") {
+            let mut prompt = String::new();
+            stdin().read_line(&mut prompt).expect("failed to read line");
+            config.dev_message = prompt;
+        }
+
+        println!("\n{:#?}\n", config);
+        if confirm_action("Save this config?") {
+            write_config(&config).expect("Error writing config");
+        }
+
+        config
+    } else {
+        println!("Using default values.");
+        ConfigTC::default()
     }
+
+    // Return default if file not found
 }
 
 pub fn write_config(config: &ConfigTC) -> std::io::Result<()> {
