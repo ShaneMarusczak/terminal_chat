@@ -1,5 +1,7 @@
 todos:
 
+add the ability to use a local AI instance, URL, MODEL, etc...
+
 Add the ability to prompt for a voice and then play the mp3 and then offer to save it
 https://platform.openai.com/docs/api-reference/audio/createSpeech
 

@@ -36,7 +36,7 @@ pub fn load_config() -> ConfigTC {
             Ok(mut config) => {
                 if !AVAILABLE_MODELS.contains(&config.model.as_str()) {
                     println!(
-                        "Invalid model found in config. Using default model: {}",
+                        "\nInvalid model found in config. Using default model: {}",
                         default_model()
                     );
                     config.model = default_model();
@@ -44,7 +44,7 @@ pub fn load_config() -> ConfigTC {
                 config
             }
             Err(_) => {
-                println!("Failed to load config. Using default values.");
+                println!("\nFailed to load config. Using default values.");
                 ConfigTC::default()
             }
         }
@@ -66,7 +66,7 @@ pub fn load_config() -> ConfigTC {
             }
             _ => {
                 eprintln!(
-                    "Invalid selection. Using default model: {}",
+                    "\nInvalid selection. Using default model: {}",
                     default_model()
                 );
                 config.model = default_model();
@@ -97,8 +97,6 @@ pub fn load_config() -> ConfigTC {
         println!("Using default values.");
         ConfigTC::default()
     }
-
-    // Return default if file not found
 }
 
 pub fn write_config(config: &ConfigTC) -> std::io::Result<()> {
