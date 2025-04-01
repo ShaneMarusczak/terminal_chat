@@ -1,6 +1,6 @@
-# Terminal Chat (tc)
+<p align="center"><img src="./images/tc_logo-min.png" width="256"/></p>
 
-<img src="./images/tc_logo-min.png" width="512"/>
+# Terminal Chat (tc)
 
 [![Rust CI](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml)
 
