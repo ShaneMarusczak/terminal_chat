@@ -1,4 +1,4 @@
-<p align="center"><img src="./images/tc_logo-min.png" width="256"/></p>
+<p align="center"><img src="./images/tc_logo-min-removebg-preview.png" width="256"/></p>
 
 # Terminal Chat (tc)
 
