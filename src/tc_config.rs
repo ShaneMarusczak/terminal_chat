@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::{fs::File, io::stdin};
-
 use crate::{commands::change_model::AVAILABLE_MODELS, messages::MESSAGES, utils::confirm_action};
+use dirs::config_dir;
+use serde::{Deserialize, Serialize};
+use std::{fs::File, io::stdin, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct ConfigTC {
@@ -31,7 +31,7 @@ fn default_streaming() -> bool {
 }
 
 pub fn load_config() -> ConfigTC {
-    if let Ok(file) = File::open("tc_config.json") {
+    if let Ok(file) = File::open(get_config_path()) {
         match serde_json::from_reader::<File, ConfigTC>(file) {
             Ok(mut config) => {
                 if !AVAILABLE_MODELS.contains(&config.model.as_str()) {
@@ -88,9 +88,7 @@ pub fn load_config() -> ConfigTC {
         }
 
         println!("\n{:#?}\n", config);
-        if confirm_action("Save this config?") {
-            write_config(&config).expect("Error writing config");
-        }
+        write_config(&config).expect("Error writing config");
 
         config
     } else {
@@ -100,9 +98,27 @@ pub fn load_config() -> ConfigTC {
 }
 
 pub fn write_config(config: &ConfigTC) -> std::io::Result<()> {
-    let file = File::create("tc_config.json")?;
-    serde_json::to_writer(file, config)?;
+    let path = get_config_path();
+
+    if confirm_action(&format!("Save to {}?", path.to_str().unwrap())) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let file = File::create(path)?;
+        serde_json::to_writer(file, config)?;
+    }
     Ok(())
+}
+
+pub(crate) fn get_config_path() -> PathBuf {
+    if let Some(mut config_dir) = config_dir() {
+        config_dir.push("tc");
+        config_dir.push("tc_config.json");
+        config_dir
+    } else {
+        // Fallback to current directory if the dirs crate fails
+        std::env::current_dir().unwrap().join("tc_config.json")
+    }
 }
 
 impl ConfigTC {
