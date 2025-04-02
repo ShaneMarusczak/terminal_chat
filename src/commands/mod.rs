@@ -1,5 +1,6 @@
 pub mod change_model;
 pub mod clear;
+pub mod clear_config;
 pub mod command_context;
 pub mod command_tc;
 pub mod commands_registry;

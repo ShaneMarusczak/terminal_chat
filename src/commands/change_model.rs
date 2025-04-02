@@ -2,16 +2,17 @@ use crate::commands::command_context::CommandContext;
 use crate::commands::command_tc::CommandResult;
 use std::io::stdin;
 
+pub(crate) const AVAILABLE_MODELS: &[&str] = &[
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4o-search-preview",
+    "o1",
+    "o3-mini",
+];
+
 pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
         let mut ctx = cc.conversation_context.lock().await;
-        const AVAILABLE_MODELS: &[&str] = &[
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4o-search-preview",
-            "o1",
-            "o3-mini",
-        ];
 
         println!("\nAvailable models:");
         for (i, model) in AVAILABLE_MODELS.iter().enumerate() {

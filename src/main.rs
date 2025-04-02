@@ -7,6 +7,7 @@ mod messages;
 mod preview_md;
 mod run;
 mod spinner;
+mod tc_config;
 mod utils;
 
 #[tokio::main]
