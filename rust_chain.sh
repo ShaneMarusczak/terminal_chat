@@ -34,7 +34,7 @@ echo
 git --no-pager diff
 echo
 
-echo "Would you like to add changes? y/n"
+echo "Would you like to add, commit and push changes? y/n"
 read -r add_confirm
 
 if [ "$add_confirm" != "y" ]; then
@@ -43,14 +43,6 @@ if [ "$add_confirm" != "y" ]; then
 fi
 
 git add .
-
-echo "Continue with commit? y/n"
-read -r continue_confirm
-
-if [ "$continue_confirm" != "y" ]; then
-  echo "Exiting"
-  exit 0
-fi
 
 echo "Enter commit message: "
 read -r commit_message

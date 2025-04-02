@@ -15,8 +15,8 @@ use futures_util::StreamExt;
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const API_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 const API_IMG_URL: &str = "https://api.openai.com/v1/images/generations";
-const ANTHROPIC_MODELS: &str = "https://api.anthropic.com/v1/models";
-const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
+// const ANTHROPIC_MODELS: &str = "https://api.anthropic.com/v1/models";
+// const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
 
 pub struct ChatClient {
     client: Client,

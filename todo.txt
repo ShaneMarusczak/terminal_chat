@@ -27,11 +27,7 @@ improve CLI use, accept pipe input
 
 add the ability to see costs
 
-customizable developer prompt
-
 Claude?
-
-improve styling of menus
 
 get into homebrew
 
@@ -45,7 +41,7 @@ but print "Was that a command?"
 
 offer to print document. save as md or txt and send to lp
 
-themes
+themes!
 
 make a 'self-correct' mode. prompt a different model
 with the models output
@@ -56,8 +52,3 @@ make streaming optional
 
 add the ability to paste in api key for a session
 
-.tc_config to load the users prefered settings
-on load, if no config, walk the user through it?
-Do you want streaming for eligible models?
-Do you want responses pretty printed as markdown?
-Which theme do you want?
