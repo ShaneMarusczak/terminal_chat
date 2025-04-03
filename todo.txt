@@ -27,8 +27,6 @@ improve CLI use, accept pipe input
 
 add the ability to see costs
 
-Claude?
-
 get into homebrew
 
 logo creator - given the project dir make a logo
