@@ -1,17 +1,7 @@
-use serde::Deserialize;
-
-use crate::chat_client::get_models;
 use crate::commands::command_context::CommandContext;
 use crate::commands::command_tc::CommandResult;
+use serde::Deserialize;
 use std::io::stdin;
-
-pub(crate) const AVAILABLE_MODELS: &[&str] = &[
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4o-search-preview",
-    "o1",
-    "o3-mini",
-];
 
 #[derive(Debug, Deserialize)]
 pub struct Model {
@@ -27,14 +17,8 @@ pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
         let mut ctx = cc.conversation_context.lock().await;
 
-        let models_response: ModelsResponse = serde_json::from_str(&get_models().await?)?;
-
-        let names: Vec<String> = models_response.data.into_iter().map(|m| m.id).collect();
-        let all_models: Vec<String> = AVAILABLE_MODELS
-            .iter()
-            .map(|&model| model.to_string())
-            .chain(names)
-            .collect();
+        let all_models =
+            crate::utils::get_all_model_names(cc.anthropic_enabled, cc.openai_enabled).await?;
 
         println!("\nAvailable models:");
 

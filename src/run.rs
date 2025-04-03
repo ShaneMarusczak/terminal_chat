@@ -13,6 +13,10 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
     println!("\n-- terminal chat -- \n");
     let config = tc_config::load_config().await?;
 
+    if !config.openai_enabled && !config.anthropic_enabled {
+        return Ok(());
+    }
+
     let context = Arc::new(Mutex::new(ConversationContext::new(
         &config.model,
         config.enable_streaming,
@@ -39,8 +43,14 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
             match cmd {
                 "q" | "quit" => break,
                 _ => {
-                    if let Err(e) =
-                        handle_command(cmd, Arc::clone(&context), Arc::clone(&dev_message)).await
+                    if let Err(e) = handle_command(
+                        cmd,
+                        Arc::clone(&context),
+                        Arc::clone(&dev_message),
+                        config.anthropic_enabled,
+                        config.openai_enabled,
+                    )
+                    .await
                     {
                         eprintln!("Error executing command: {} With error: {}", cmd, e);
                     }
