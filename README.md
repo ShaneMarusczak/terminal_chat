@@ -4,51 +4,61 @@
 
 [![Rust CI](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml)
 
-Terminal Chat is an interactive, terminal‐based chat application built with Rust. It allows you to have real-time conversations with OpenAI's API while leveraging various commands to manage and document sessions. The project is designed to be highly efficient, minimal, and provides a responsive command-line interface with an integrated spinner and auto-completion support.
+Terminal Chat is an interactive, terminal‐based chat application built with Rust. It allows you to have real-time conversations with OpenAI and Anthropic models while leveraging various commands to manage and document sessions. The project is designed to be highly efficient, minimal, and provides a responsive command-line interface with an integrated spinner and auto-completion support.
 
 ---
 
 ## Features
 
-- Real-time streaming chat support via asynchronous HTTP requests using Reqwest and Tokio
-- Command parser for extended functionality
-- Integrated spinner for visual feedback during long-running API calls
-- File-based context augmentation (upload file contents to chat context)
-- Automated documentation and report generation in Markdown
-- Modular design for easy future expansion
+- **Interactive REPL Interface:** Start a conversation in a command–line REPL with rich history, autocompletion (via linefeed), and an animated spinner during long-running API calls.
+- **API Integration:** Communicates with OpenAI’s and Anthropic’s endpoints for chat completions and image generations.
+- **Command Suite:** Execute a variety of built-in commands including changing models, loading/saving conversations, generating README documentation, executing shell commands, and more.
+- **Custom Configuration:** Easily configure the chat model, streaming options, and custom developer prompts via a config file.
+- **Markdown Preview:** Render and preview markdown responses directly in the terminal with ANSI styling.
 
 ---
 
 ## Installation
 
-1. **Prerequisites**
+1. **Prerequisites:**
+   - Install the latest stable version of [Rust](https://www.rust-lang.org/tools/install).
+   - Ensure your system provides a proper terminal that supports ANSI escape codes.
+   - Obtain API keys from your desired providers:
+     - Set the `OPENAI_API_KEY` environment variable for OpenAI endpoints.
+     - Set the `ANTHROPIC_API_KEY` environment variable for Anthropic endpoints.
 
-   - Rust (latest stable version; requires Rust 2024 edition)
-   - Cargo package manager
-   - An OpenAI API key – set your environment variable:
-     `export OPENAI_API_KEY=your_api_key_here`
+2. **Clone the Repository:**
 
-2. **Clone the repository**
+   ```sh
+   git clone https://github.com/yourusername/tc.git
+   cd tc
+   ```
 
-   Run the following commands:
+3. **Build the Project:**
 
-   $ git clone <repository_url>
-   $ cd terminal-chat
+   Run in release mode for optimized performance:
 
-3. **Build the project**
+   ```sh
+   cargo run --release
+   ```
 
-   $ cargo build --release
+4. **Configuration Setup:**
 
-4. **Run the project**
+TC Terminal Chat uses a JSON configuration file that is stored in your system’s configuration directory (or in the current directory as a fallback). Key configuration settings include:
 
-   $ cargo run --release
+- **enable_streaming:** Enable/disable streaming responses (default: false).
+- **model:** The default AI model (default: `gpt-4o-mini`).
+- **dev_message:** A custom developer message that guides AI responses.
+- **preview_md:** When enabled, non-streamed responses are displayed as rendered markdown.
+
+You can update these settings interactively on first run or manually by editing the file (`tc_config.json`).
 
 ---
 
 ## Usage Guide
 
 - **Chatting:**
-  Simply type your message at the prompt (🗣️). The application will send your input to the OpenAI API and stream the response in real-time.
+  Simply type your message at the prompt (🗣️) and press Enter. The application will send your input to the chosen model and display the response in real-time.
 
 - **Commands:**
   Commands are prefixed with a colon (`:`). Some common commands include:
@@ -70,21 +80,14 @@ Terminal Chat is an interactive, terminal‐based chat application built with Ru
 
 ## Configuration Details
 
-- The project uses a custom release profile configured in Cargo.toml:
-  - `panic = "abort"`
-  - `lto = true`
-  - `opt-level = 'z'` (size optimizations)
-  - `codegen-units = 1`
-  - `strip = true`
-  - `debug = false`
-  - `incremental = false`
+TC Terminal Chat uses a JSON configuration file that is stored in your system’s configuration directory (or in the current directory as a fallback). Key configuration settings include:
 
-- Environment Variable:
-  Set `OPENAI_API_KEY` to your valid OpenAI API key.
+- **enable_streaming:** Enable/disable streaming responses (default: false).
+- **model:** The default AI model (default: `gpt-4o-mini`).
+- **dev_message:** A custom developer message that guides AI responses.
+- **preview_md:** When enabled, non-streamed responses are displayed as rendered markdown.
 
-- API Endpoints:
-  - Standard API: `https://api.openai.com/v1/responses`
-  - Chat completions: `https://api.openai.com/v1/chat/completions`
+You can update these settings interactively on first run or manually by editing the file (`tc_config.json`).
 
 ---
 

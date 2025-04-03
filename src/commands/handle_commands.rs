@@ -1,7 +1,6 @@
 use tokio::sync::Mutex;
 
 use crate::{
-    chat_client::ChatClient,
     commands::{command_context::CommandContext, commands_registry::TC_COMMANDS},
     conversation::{ConversationContext, Message},
 };
@@ -11,7 +10,6 @@ pub async fn handle_command(
     cmd: &str,
     context: Arc<Mutex<ConversationContext>>,
     dev_message: Arc<Message>,
-    chat_client: Arc<ChatClient>,
 ) -> Result<(), Box<dyn Error>> {
     let cmd_string = cmd.trim();
     let mut parts = cmd_string.split_whitespace();
@@ -21,7 +19,6 @@ pub async fn handle_command(
     let cc = CommandContext::new(
         Arc::clone(&context),
         Arc::clone(&dev_message),
-        Arc::clone(&chat_client),
         main_cmd.clone(),
         args,
     );

@@ -1,7 +1,12 @@
-use crate::{commands::change_model::AVAILABLE_MODELS, messages::MESSAGES, utils::confirm_action};
+use crate::{
+    chat_client::get_models,
+    commands::change_model::{AVAILABLE_MODELS, ModelsResponse},
+    messages::MESSAGES,
+    utils::confirm_action,
+};
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::stdin, path::PathBuf};
+use std::{error::Error, fs::File, io::stdin, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct ConfigTC {
@@ -30,28 +35,37 @@ fn default_streaming() -> bool {
     false
 }
 
-pub fn load_config() -> ConfigTC {
+pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
+    let models_response: ModelsResponse = serde_json::from_str(&get_models().await?)?;
+
+    let names: Vec<String> = models_response.data.into_iter().map(|m| m.id).collect();
+    let all_models: Vec<String> = AVAILABLE_MODELS
+        .iter()
+        .map(|&model| model.to_string())
+        .chain(names)
+        .collect();
+
     if let Ok(file) = File::open(get_config_path()) {
         match serde_json::from_reader::<File, ConfigTC>(file) {
             Ok(mut config) => {
-                if !AVAILABLE_MODELS.contains(&config.model.as_str()) {
+                if !all_models.contains(&config.model) {
                     println!(
                         "\nInvalid model found in config. Using default model: {}",
                         default_model()
                     );
                     config.model = default_model();
                 }
-                config
+                Ok(config)
             }
             Err(_) => {
                 println!("\nFailed to load config. Using default values.");
-                ConfigTC::default()
+                Ok(ConfigTC::default())
             }
         }
     } else if confirm_action("No config file found. Would you like to set one up? (y/n)") {
         let mut config = ConfigTC::default();
         println!("\nAvailable models:");
-        for (i, model) in AVAILABLE_MODELS.iter().enumerate() {
+        for (i, model) in all_models.iter().enumerate() {
             println!("{}) {}", i + 1, model);
         }
         println!("\nPlease select a model by typing its number:");
@@ -61,8 +75,8 @@ pub fn load_config() -> ConfigTC {
             .expect("failed to read line");
 
         match model_choice.trim().parse::<usize>() {
-            Ok(num) if num > 0 && num <= AVAILABLE_MODELS.len() => {
-                config.model = AVAILABLE_MODELS[num - 1].to_string();
+            Ok(num) if num > 0 && num <= all_models.len() => {
+                config.model = all_models[num - 1].to_string();
             }
             _ => {
                 eprintln!(
@@ -90,10 +104,10 @@ pub fn load_config() -> ConfigTC {
         println!("\n{:#?}\n", config);
         write_config(&config).expect("Error writing config");
 
-        config
+        Ok(config)
     } else {
         println!("Using default values.");
-        ConfigTC::default()
+        Ok(ConfigTC::default())
     }
 }
 
