@@ -10,6 +10,8 @@ pub async fn handle_command(
     cmd: &str,
     context: Arc<Mutex<ConversationContext>>,
     dev_message: Arc<Message>,
+    anthropic_enabled: bool,
+    openai_enabled: bool,
 ) -> Result<(), Box<dyn Error>> {
     let cmd_string = cmd.trim();
     let mut parts = cmd_string.split_whitespace();
@@ -19,6 +21,8 @@ pub async fn handle_command(
     let cc = CommandContext::new(
         Arc::clone(&context),
         Arc::clone(&dev_message),
+        anthropic_enabled,
+        openai_enabled,
         main_cmd.clone(),
         args,
     );
