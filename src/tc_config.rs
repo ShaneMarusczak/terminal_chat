@@ -1,12 +1,12 @@
 use crate::{
-    chat_client::ChatClient,
+    chat_client::get_models,
     commands::change_model::{AVAILABLE_MODELS, ModelsResponse},
     messages::MESSAGES,
     utils::confirm_action,
 };
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
-use std::{error::Error, fs::File, io::stdin, path::PathBuf, sync::Arc};
+use std::{error::Error, fs::File, io::stdin, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct ConfigTC {
@@ -35,8 +35,8 @@ fn default_streaming() -> bool {
     false
 }
 
-pub async fn load_config(client: Arc<ChatClient>) -> Result<ConfigTC, Box<dyn Error>> {
-    let models_response: ModelsResponse = serde_json::from_str(&client.get_models().await?)?;
+pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
+    let models_response: ModelsResponse = serde_json::from_str(&get_models().await?)?;
 
     let names: Vec<String> = models_response.data.into_iter().map(|m| m.id).collect();
     let all_models: Vec<String> = AVAILABLE_MODELS

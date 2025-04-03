@@ -1,5 +1,7 @@
+use crate::chat_client::{anthropic_chat, send_request, stream};
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
+use crate::conversation::{AnthropicMessage, ConversationContext, Message, ResponseC};
 use crate::preview_md::markdown_to_ansi;
 use crate::tc_config;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
@@ -7,14 +9,9 @@ use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::chat_client::ChatClient;
-use crate::conversation::{AnthropicMessage, ConversationContext, Message, ResponseC};
-
 pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
     println!("\n-- terminal chat -- \n");
-    let chat_client = Arc::new(ChatClient::new()?);
-
-    let config = tc_config::load_config(Arc::clone(&chat_client)).await?;
+    let config = tc_config::load_config().await?;
 
     let context = Arc::new(Mutex::new(ConversationContext::new(
         &config.model,
@@ -42,26 +39,15 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
             match cmd {
                 "q" | "quit" => break,
                 _ => {
-                    if let Err(e) = handle_command(
-                        cmd,
-                        Arc::clone(&context),
-                        Arc::clone(&dev_message),
-                        Arc::clone(&chat_client),
-                    )
-                    .await
+                    if let Err(e) =
+                        handle_command(cmd, Arc::clone(&context), Arc::clone(&dev_message)).await
                     {
                         eprintln!("Error executing command: {} With error: {}", cmd, e);
                     }
                 }
             }
         } else {
-            actually_chat(
-                line,
-                Arc::clone(&context),
-                Arc::clone(&chat_client),
-                config.enable_streaming,
-            )
-            .await?;
+            actually_chat(line, Arc::clone(&context), config.enable_streaming).await?;
         }
     }
 
@@ -78,7 +64,6 @@ fn build_interface() -> Result<Interface<DefaultTerminal>, Box<dyn Error>> {
 async fn actually_chat(
     line: String,
     context: Arc<Mutex<ConversationContext>>,
-    client: Arc<ChatClient>,
     enable_streaming: bool,
 ) -> Result<(), Box<dyn Error>> {
     let mut ctx = context.lock().await;
@@ -91,7 +76,7 @@ async fn actually_chat(
     if ctx.model.contains("claude") {
         ctx.set_stream(false);
 
-        let reply: AnthropicMessage = client.anthropic_chat(&ctx).await?;
+        let reply: AnthropicMessage = anthropic_chat(&ctx).await?;
 
         let message = reply.content.first().unwrap().text.clone();
 
@@ -105,7 +90,7 @@ async fn actually_chat(
         ctx.set_stream(true);
     } else if !enable_streaming || ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
         ctx.set_stream(false);
-        let response: ResponseC = client.send_request("chat", &*ctx).await?;
+        let response: ResponseC = send_request("chat", &*ctx).await?;
         if let Some(choice) = response.choices.first() {
             let reply = choice.message.content.clone();
             {
@@ -119,7 +104,7 @@ async fn actually_chat(
         }
         ctx.set_stream(true);
     } else {
-        client.stream(&mut ctx).await?;
+        stream(&mut ctx).await?;
     }
 
     Ok(())

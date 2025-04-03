@@ -1,3 +1,4 @@
+use crate::chat_client::send_request;
 use crate::commands::command_context::CommandContext;
 use crate::conversation::{ConversationContext, Message};
 use crate::messages::MESSAGES;
@@ -62,7 +63,7 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
         }
 
         println!("\nFiles used: {:?}\n\n", names);
-        let response = cc.chat_client.send_request("d", &new_context).await?;
+        let response = send_request("d", &new_context).await?;
 
         let result_content = if let Some(r) = extract_message_text(&response) {
             r.replace("•", "-")

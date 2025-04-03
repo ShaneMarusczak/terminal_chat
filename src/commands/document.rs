@@ -1,3 +1,4 @@
+use crate::chat_client::send_request;
 use crate::commands::command_context::CommandContext;
 use crate::conversation::{ConversationContext, Message};
 use crate::messages::MESSAGES;
@@ -29,7 +30,7 @@ pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
             }
         }
 
-        let response = cc.chat_client.send_request("d", &new_context).await?;
+        let response = send_request("d", &new_context).await?;
         let report =
             extract_message_text(&response).ok_or("No content received in the document report")?;
 
@@ -44,7 +45,7 @@ pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
         };
         title_context.input.push(title_prompt);
 
-        let title_response = cc.chat_client.send_request("d", &title_context).await?;
+        let title_response = send_request("d", &title_context).await?;
         let title = extract_message_text(&title_response).unwrap_or_else(|| "Report".to_string());
 
         let sanitized_title = title

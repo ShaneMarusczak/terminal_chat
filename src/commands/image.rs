@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+use crate::chat_client::send_request;
 use crate::commands::command_context::CommandContext;
 use crate::utils::read_user_input;
 
 use crate::commands::command_tc::CommandResult;
 
 pub async fn image_command(cc: Option<CommandContext>) -> CommandResult {
-    if let Some(cc) = cc {
+    if cc.is_some() {
         let model_choice = read_user_input("Choose model (2 for DALL-E 2, 3 for DALL-E 3): ");
         let model = match model_choice.trim() {
             "2" => "dall-e-2",
@@ -22,7 +23,7 @@ pub async fn image_command(cc: Option<CommandContext>) -> CommandResult {
             model: model.into(),
             prompt,
         };
-        let response: ImageResponse = cc.chat_client.send_request("image", image_request).await?;
+        let response: ImageResponse = send_request("image", image_request).await?;
         println!();
 
         for (i, obj) in response.data.iter().enumerate() {
