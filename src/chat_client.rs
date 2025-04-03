@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    conversation::{ConversationContext, DeltaData, Message},
+    conversation::{AnthropicRequest, ConversationContext, DeltaData, Message},
     spinner::run_with_spinner,
 };
 use futures_util::StreamExt;
@@ -15,8 +15,8 @@ use futures_util::StreamExt;
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const API_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 const API_IMG_URL: &str = "https://api.openai.com/v1/images/generations";
-// const ANTHROPIC_MODELS: &str = "https://api.anthropic.com/v1/models";
-// const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_MODELS: &str = "https://api.anthropic.com/v1/models";
+const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
 
 pub struct ChatClient {
     client: Client,
@@ -30,6 +30,19 @@ impl ChatClient {
             client: Client::new(),
             api_key,
         })
+    }
+
+    pub async fn get_models(&self) -> Result<String, Box<dyn Error>> {
+        let response = self
+            .client
+            .get(ANTHROPIC_MODELS)
+            .header("x-api-key", env::var("ANTHROPIC_API_KEY").unwrap())
+            .header("anthropic-version", "2023-06-01")
+            .send()
+            .await?
+            .text()
+            .await?;
+        Ok(response)
     }
 
     pub async fn stream(&self, context: &mut ConversationContext) -> Result<(), Box<dyn Error>> {
@@ -71,6 +84,40 @@ impl ChatClient {
         });
         println!("\n");
         Ok(())
+    }
+
+    pub async fn anthropic_chat<T>(
+        &self,
+        context: &ConversationContext,
+    ) -> Result<T, Box<dyn Error>>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let anthropic_request = AnthropicRequest::from_context(context, 2048);
+
+        let request_json = serde_json::to_string(&anthropic_request)?;
+
+        let response_text = run_with_spinner(async {
+            self.client
+                .post(ANTHROPIC_MESSAGES)
+                .header("Content-Type", "application/json")
+                .header("x-api-key", env::var("ANTHROPIC_API_KEY").unwrap())
+                .header("anthropic-version", "2023-06-01")
+                .body(request_json)
+                .send()
+                .await?
+                .text()
+                .await
+        })
+        .await?;
+
+        // Clear the spinner from stdout
+        print!("\r                \r");
+        stdout().flush().ok();
+
+        let resp: T = from_str(&response_text)
+            .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
+        Ok(resp)
     }
 
     pub async fn send_request<F, T>(&self, url_flag: &str, context: F) -> Result<T, Box<dyn Error>>

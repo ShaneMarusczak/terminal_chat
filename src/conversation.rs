@@ -13,6 +13,46 @@ pub struct ConversationContext {
     pub stream: bool,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AnthropicRequest {
+    pub system: String,
+    pub model: String,
+    pub messages: Vec<Message>,
+    pub max_tokens: usize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AnthropicMessageContent {
+    pub text: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AnthropicMessage {
+    pub content: Vec<AnthropicMessageContent>,
+}
+
+impl AnthropicRequest {
+    pub fn from_context(ctx: &ConversationContext, max_tokens: usize) -> Self {
+        let system_content = ctx
+            .input
+            .iter()
+            .find(|m| m.role == "developer")
+            .map(|m| m.content.clone())
+            .unwrap_or_default();
+        Self {
+            system: system_content,
+            model: ctx.model.clone(),
+            max_tokens,
+            messages: ctx
+                .input
+                .iter()
+                .filter(|m| m.role != "developer")
+                .cloned()
+                .collect(),
+        }
+    }
+}
+
 impl ConversationContext {
     pub fn new(model: &str, stream: bool) -> Self {
         Self {

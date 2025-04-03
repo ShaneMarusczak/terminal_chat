@@ -3,16 +3,18 @@ use crate::commands::handle_commands::handle_command;
 use crate::preview_md::markdown_to_ansi;
 use crate::tc_config;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
-use std::{error::Error, sync::Arc};
+use std::error::Error;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::chat_client::ChatClient;
-use crate::conversation::{ConversationContext, Message, ResponseC};
+use crate::conversation::{AnthropicMessage, ConversationContext, Message, ResponseC};
 
 pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
     println!("\n-- terminal chat -- \n");
+    let chat_client = Arc::new(ChatClient::new()?);
 
-    let config = tc_config::load_config();
+    let config = tc_config::load_config(Arc::clone(&chat_client)).await?;
 
     let context = Arc::new(Mutex::new(ConversationContext::new(
         &config.model,
@@ -23,8 +25,6 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
         role: "developer".into(),
         content: config.dev_message,
     });
-
-    let chat_client = Arc::new(ChatClient::new()?);
     let interface = build_interface()?;
 
     {
@@ -88,7 +88,22 @@ async fn actually_chat(
         content: line.clone(),
     });
 
-    if !enable_streaming || ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
+    if ctx.model.contains("claude") {
+        ctx.set_stream(false);
+
+        let reply: AnthropicMessage = client.anthropic_chat(&ctx).await?;
+
+        let message = reply.content.first().unwrap().text.clone();
+
+        println!("\n🤖 {}\n", message);
+
+        ctx.input.push(Message {
+            role: "assistant".into(),
+            content: message.clone(),
+        });
+
+        ctx.set_stream(true);
+    } else if !enable_streaming || ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
         ctx.set_stream(false);
         let response: ResponseC = client.send_request("chat", &*ctx).await?;
         if let Some(choice) = response.choices.first() {
