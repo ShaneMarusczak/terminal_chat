@@ -2,7 +2,7 @@ use crate::commands::{command_context::CommandContext, commands_registry::TC_COM
 
 use crate::commands::command_tc::CommandResult;
 
-pub async fn help_command(_cc: Option<CommandContext>) -> CommandResult {
+pub async fn help_command(_cc: Option<CommandContext<'_>>) -> CommandResult {
     println!("\nAvailable commands:\n");
     for tc in TC_COMMANDS.values() {
         if tc.name.len() < 7 {

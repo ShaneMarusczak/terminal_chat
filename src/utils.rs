@@ -1,4 +1,4 @@
-use std::{error::Error, io::stdin};
+use std::{collections::HashSet, error::Error, io::stdin};
 
 use crate::{
     chat_client::get_models, commands::change_model::ModelsResponse, conversation::Response,
@@ -60,5 +60,51 @@ pub async fn get_all_model_names(
         Ok(names)
     } else {
         unreachable!()
+    }
+}
+
+pub(crate) fn sequence_equals(slice1: &[String], slice2: &[String]) -> bool {
+    if slice1.len() != slice2.len() {
+        return false;
+    }
+
+    let set1: HashSet<_> = slice1.iter().collect();
+    let set2: HashSet<_> = slice2.iter().collect();
+
+    set1 == set2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sequence_equals() {
+        // Equal sequences
+        assert!(sequence_equals(
+            &["a".to_string(), "b".to_string()],
+            &["a".to_string(), "b".to_string()]
+        ));
+
+        // Equal sequences in different order
+        assert!(sequence_equals(
+            &["a".to_string(), "b".to_string()],
+            &["b".to_string(), "a".to_string()]
+        ));
+
+        // Different lengths
+        assert!(!sequence_equals(
+            &["a".to_string(), "b".to_string()],
+            &["a".to_string(), "b".to_string(), "c".to_string()]
+        ));
+
+        // Different contents
+        assert!(!sequence_equals(
+            &["a".to_string(), "b".to_string()],
+            &["a".to_string(), "c".to_string()]
+        ));
+
+        // Empty sequences
+        assert!(sequence_equals(&[], &[]));
     }
 }

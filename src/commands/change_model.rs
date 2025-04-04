@@ -13,16 +13,13 @@ pub struct ModelsResponse {
     pub data: Vec<Model>,
 }
 
-pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
+pub async fn change_model_command(cc: Option<CommandContext<'_>>) -> CommandResult {
     if let Some(cc) = cc {
         let mut ctx = cc.conversation_context.lock().await;
 
-        let all_models =
-            crate::utils::get_all_model_names(cc.anthropic_enabled, cc.openai_enabled).await?;
-
         println!("\nAvailable models:");
 
-        for (i, model) in all_models.iter().enumerate() {
+        for (i, model) in cc.config.all_models.iter().enumerate() {
             println!("{}) {}", i + 1, model);
         }
         println!("\nPlease select a model by typing its number:");
@@ -32,8 +29,8 @@ pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
             .expect("failed to read line");
 
         match model_choice.trim().parse::<usize>() {
-            Ok(num) if num > 0 && num <= all_models.len() => {
-                ctx.model = all_models[num - 1].to_string();
+            Ok(num) if num > 0 && num <= cc.config.all_models.len() => {
+                ctx.model = cc.config.all_models[num - 1].to_string();
                 println!("Model changed to: {}\n", ctx.model);
             }
             _ => eprintln!("Invalid selection. Keeping current model: {}\n", ctx.model),

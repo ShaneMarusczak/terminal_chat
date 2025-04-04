@@ -4,7 +4,7 @@ use crate::conversation::ConversationContext;
 use crate::utils::read_user_input;
 use std::fs;
 
-pub async fn lc_command(cc: Option<CommandContext>) -> CommandResult {
+pub async fn lc_command(cc: Option<CommandContext<'_>>) -> CommandResult {
     if let Some(cc) = cc {
         let mut ctx = cc.conversation_context.lock().await;
 
