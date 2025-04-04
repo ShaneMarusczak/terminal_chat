@@ -12,7 +12,7 @@ use walkdir::WalkDir;
 
 use crate::commands::command_tc::CommandResult;
 
-pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
+pub async fn readme_command(cc: Option<CommandContext<'_>>) -> CommandResult {
     if let Some(cc) = cc {
         if cc.args.is_empty() {
             eprintln!("\nInvalid use of readme. Usage: readme <directory> [extensions...]\n");

@@ -5,7 +5,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
 
-pub async fn sc_command(cc: Option<CommandContext>) -> CommandResult {
+pub async fn sc_command(cc: Option<CommandContext<'_>>) -> CommandResult {
     if let Some(cc) = cc {
         let current_convo = cc.conversation_context.lock().await;
 

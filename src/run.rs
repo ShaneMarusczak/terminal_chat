@@ -11,7 +11,8 @@ use tokio::sync::Mutex;
 
 pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
     println!("\n-- terminal chat -- \n");
-    let config = tc_config::load_config().await?;
+
+    let config = Box::leak(Box::new(tc_config::load_config().await?));
 
     if !config.openai_enabled && !config.anthropic_enabled {
         return Ok(());
@@ -24,7 +25,7 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
 
     let dev_message = Arc::new(Message {
         role: "developer".into(),
-        content: config.dev_message,
+        content: config.dev_message.clone(),
     });
     let interface = build_interface()?;
 
@@ -43,14 +44,9 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
             match cmd {
                 "q" | "quit" => break,
                 _ => {
-                    if let Err(e) = handle_command(
-                        cmd,
-                        Arc::clone(&context),
-                        Arc::clone(&dev_message),
-                        config.anthropic_enabled,
-                        config.openai_enabled,
-                    )
-                    .await
+                    if let Err(e) =
+                        handle_command(cmd, Arc::clone(&context), Arc::clone(&dev_message), config)
+                            .await
                     {
                         eprintln!("Error executing command: {} With error: {}", cmd, e);
                     }

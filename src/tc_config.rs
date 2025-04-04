@@ -1,4 +1,7 @@
-use crate::{messages::MESSAGES, utils::confirm_action};
+use crate::{
+    messages::MESSAGES,
+    utils::{confirm_action, sequence_equals},
+};
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
 use std::{env, error::Error, fs::File, io::stdin, path::PathBuf};
@@ -10,6 +13,9 @@ pub(crate) struct ConfigTC {
 
     #[serde(default)]
     pub(crate) model: String,
+
+    #[serde(default)]
+    pub(crate) all_models: Vec<String>,
 
     #[serde(default = "default_dev_message")]
     pub(crate) dev_message: String,
@@ -45,7 +51,7 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
         eprintln!(
             "\nNo API keys detected, you must have an Anthropic key or an OpenAI key to use this app. Support for Local AI instances in development.\n"
         );
-        return Ok(ConfigTC::default(String::new()));
+        return Ok(ConfigTC::default(vec![]));
     }
 
     let all_models =
@@ -54,6 +60,11 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
     if let Ok(file) = File::open(get_config_path()) {
         match serde_json::from_reader::<File, ConfigTC>(file) {
             Ok(mut config) => {
+                if !sequence_equals(&config.all_models, &all_models) {
+                    config.all_models = all_models.clone();
+                    // Update the configuration file with the new models list
+                    write_config(&config)?;
+                }
                 if !all_models.contains(&config.model) {
                     eprintln!(
                         "\nInvalid model found in config. Using: {}",
@@ -65,13 +76,11 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
             }
             Err(_) => {
                 println!("\nFailed to load config. Using default values.");
-                Ok(ConfigTC::default(all_models.first().unwrap().to_owned()))
+                Ok(ConfigTC::default(all_models))
             }
         }
     } else if confirm_action("No config file found. Would you like to set one up? (y/n)") {
-        let all_models =
-            crate::utils::get_all_model_names(default_anthropic(), default_openai()).await?;
-        let mut config = ConfigTC::default(String::new());
+        let mut config = ConfigTC::default(all_models.clone());
         println!("\nAvailable models:");
         for (i, model) in all_models.iter().enumerate() {
             println!("{}) {}", i + 1, model);
@@ -109,13 +118,16 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
             config.dev_message = prompt;
         }
 
-        println!("\n{:#?}\n", config);
+        println!(
+            "\nConfiguration:\nModel: {}\nEnable Streaming: {}\nPreview Markdown: {}\nDeveloper Message: {}\n",
+            config.model, config.enable_streaming, config.preview_md, config.dev_message
+        );
         write_config(&config).expect("Error writing config");
 
         Ok(config)
     } else {
         println!("Using default values.");
-        Ok(ConfigTC::default(all_models.first().unwrap().to_owned()))
+        Ok(ConfigTC::default(all_models))
     }
 }
 
@@ -144,10 +156,11 @@ pub(crate) fn get_config_path() -> PathBuf {
 }
 
 impl ConfigTC {
-    pub fn default(model: String) -> Self {
+    pub fn default(all_models: Vec<String>) -> Self {
         Self {
             enable_streaming: default_streaming(),
-            model,
+            model: all_models.first().unwrap().to_owned(),
+            all_models,
             dev_message: default_dev_message(),
             preview_md: true,
             anthropic_enabled: default_anthropic(),
