@@ -57,11 +57,11 @@ jobs:
 
       - name: Archive the build
         run: |
-          mkdir -p artifacts
+          mkdir -p artifacts/${{ matrix.release_suffix }}
           if [[ "${{ matrix.os }}" == 'windows-latest' ]]; then
-            cp target/release/tc.exe artifacts/
+            cp target/release/tc.exe artifacts/${{ matrix.release_suffix }}/
           else
-            cp target/release/tc artifacts/
+            cp target/release/tc artifacts/${{ matrix.release_suffix }}/
           fi
         shell: bash
 
@@ -69,12 +69,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-binaries
-          path: artifacts/
+          path: artifacts/${{ matrix.release_suffix }}/
 
       - name: Publish Release Assets
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          files: artifacts/*
+          files: artifacts/${{ matrix.release_suffix }}/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
