@@ -6,9 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write    # required to create releases & upload assets
-  # you can also add:
-  # releases: write
+  contents: write    # allow creating releases & uploading assets
 
 jobs:
   create_release:
@@ -68,7 +66,7 @@ jobs:
         shell: bash
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-binaries
           path: artifacts/
