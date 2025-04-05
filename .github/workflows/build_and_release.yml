@@ -59,9 +59,9 @@ jobs:
         run: |
           mkdir -p artifacts
           if [[ "${{ matrix.os }}" == 'windows-latest' ]]; then
-            cp target/release/*.exe artifacts/
+            cp target/release/tc.exe artifacts/
           else
-            cp target/release/* artifacts/
+            cp target/release/tc artifacts/
           fi
         shell: bash
 
