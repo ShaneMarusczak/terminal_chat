@@ -10,6 +10,9 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -18,6 +21,8 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_release:
     name: Build Release
@@ -35,22 +40,37 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Run Linux Build
-        if: matrix.os == 'ubuntu-latest'
-        run: echo "Ubuntu Latest" > release_ubuntu
-      
-      - name: Run Mac Build
-        if: matrix.os == 'macos-latest'
-        run: echo "MacOS Latest" > release_mac
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
 
-      - name: Run Windows Build
-        if: matrix.os == 'windows-latest'
-        run: echo "Windows Latest" > release_windows
+      - name: Build
+        run: cargo build --release
+
+      - name: Archive the build
+        run: |
+          mkdir -p artifacts
+          if [[ "${{ matrix.os }}" == 'windows-latest' ]]; then
+            cp target/release/*.exe artifacts/
+          else
+            cp target/release/* artifacts/
+          fi
+        shell: bash
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-binaries
+          path: artifacts/
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.create_release.outputs.tag-name }}
-          files: release_${{ matrix.release_suffix }}
+          files: artifacts/*
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
