@@ -46,8 +46,7 @@ jobs:
             asset_name: tc-win.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
@@ -80,7 +79,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: artifacts/${{ matrix.release_suffix }}/*
-          # give the asset a unique name so it doesn’t overwrite
-          name: ${{ matrix.asset_name }}
+          asset_name: ${{ matrix.asset_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
