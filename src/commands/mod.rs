@@ -6,6 +6,7 @@ pub mod command_tc;
 pub mod commands_registry;
 pub mod debug;
 pub mod document;
+pub mod edit_config;
 pub mod gf;
 pub mod handle_commands;
 pub mod help;

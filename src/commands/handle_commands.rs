@@ -3,7 +3,6 @@ use tokio::sync::Mutex;
 use crate::{
     commands::{command_context::CommandContext, commands_registry::TC_COMMANDS},
     conversation::{ConversationContext, Message},
-    tc_config::ConfigTC,
 };
 use std::{error::Error, sync::Arc};
 
@@ -11,7 +10,6 @@ pub async fn handle_command(
     cmd: &str,
     context: Arc<Mutex<ConversationContext>>,
     dev_message: Arc<Message>,
-    config: &'static ConfigTC,
 ) -> Result<(), Box<dyn Error>> {
     let cmd_string = cmd.trim();
     let mut parts = cmd_string.split_whitespace();
@@ -23,7 +21,6 @@ pub async fn handle_command(
         Arc::clone(&dev_message),
         main_cmd.clone(),
         args,
-        config,
     );
 
     if let Some(tc) = TC_COMMANDS.get(main_cmd.as_str()) {

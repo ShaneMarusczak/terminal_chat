@@ -2,7 +2,7 @@ use crate::commands::command_context::CommandContext;
 use crate::commands::command_tc::CommandResult;
 use std::process::Command;
 
-pub async fn sh(cc: Option<CommandContext<'_>>) -> CommandResult {
+pub async fn sh(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
         if cc.args.is_empty() {
             eprintln!("\nUsage: sh <program> [args...]\n");

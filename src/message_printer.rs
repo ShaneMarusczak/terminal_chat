@@ -1,4 +1,5 @@
-use colored::{ColoredString, Colorize};
+use crate::{tc_config::ConfigTC, utils::calculate_message_width};
+use crossterm::style::{Color, Stylize};
 
 const UPPER_LEFT: &str = "┌";
 const UPPER_RIGHT: &str = "┐";
@@ -10,84 +11,74 @@ const VERTICAL_BAR: &str = "│";
 pub(crate) enum MessageType {
     User,
     Assistant,
+    System,
 }
 
-const MAX_CHAT_WIDTH: usize = 45;
+const MAX_CHAT_WIDTH: usize = 50;
 const MESSAGE_WIDTH_PERCENT: usize = 80;
 
-pub(crate) fn print_message(message_text: &str, message_type: MessageType) {
-    let terminal_width = termsize::get().map(|size| size.cols as usize).unwrap_or(80);
-    let max_chat_width = terminal_width.min(MAX_CHAT_WIDTH);
+pub(crate) fn print_message(message_text: &str, message_type: MessageType, config: &ConfigTC) {
+    let max_width = calculate_message_width(message_text, MAX_CHAT_WIDTH, MESSAGE_WIDTH_PERCENT);
 
-    let max_width = max_chat_width * MESSAGE_WIDTH_PERCENT / 100;
+    let effective_width = max_width - 2; // For the box characters on both sides
 
-    let lines: Vec<&str> = message_text.lines().collect();
-    let is_single_line = lines.len() == 1;
+    let prefix = match message_type {
+        MessageType::User => " ".repeat(MAX_CHAT_WIDTH - max_width),
+        MessageType::System => {
+            let space = (MAX_CHAT_WIDTH - max_width) / 2;
+            " ".repeat(space)
+        }
+        _ => String::new(),
+    };
 
     let color = match message_type {
-        MessageType::User => "green",
-        MessageType::Assistant => "blue",
-    };
-
-    let width = if is_single_line {
-        let content_width = lines[0].len() + 4; // Add 4 for padding (2 on each side)
-        let label_width = match message_type {
-            MessageType::User => 8,       // "User" (4) + padding (4)
-            MessageType::Assistant => 13, // "Assistant" (9) + padding (4)
-        };
-        (content_width.max(label_width) + 2).min(max_width) // +2 for wrapper chars
-    } else {
-        max_width
-    };
-
-    let effective_width = width - 2; // For the box characters on both sides
-
-    // Right align user messages within the max_chat_width
-    let prefix = if matches!(message_type, MessageType::User) {
-        " ".repeat(max_chat_width - width)
-    } else {
-        String::new()
+        MessageType::User => parse_color(&config.theme.user_color),
+        MessageType::Assistant => parse_color(&config.theme.assistant_color),
+        MessageType::System => parse_color(&config.theme.system_color),
     };
 
     let first_row = match message_type {
-        MessageType::User => {
-            let left_padding = effective_width - 4;
-            format!(
-                "{}{}{}{}",
-                UPPER_LEFT.color(color),
-                HORIZONTAL_BAR.repeat(left_padding).color(color),
-                "User",
-                UPPER_RIGHT.color(color)
-            )
-        }
-        MessageType::Assistant => {
-            format!(
-                "{}{}{}{}",
-                UPPER_LEFT.color(color),
-                "Assistant",
-                HORIZONTAL_BAR.repeat(effective_width - 9).color(color),
-                UPPER_RIGHT.color(color)
-            )
-        }
+        MessageType::User => format!(
+            "{}{}{}{}",
+            UPPER_LEFT.with(color),
+            HORIZONTAL_BAR.repeat(effective_width - 4).with(color),
+            "User",
+            UPPER_RIGHT.with(color)
+        ),
+        MessageType::Assistant => format!(
+            "{}{}{}{}",
+            UPPER_LEFT.with(color),
+            "Assistant",
+            HORIZONTAL_BAR.repeat(effective_width - 9).with(color),
+            UPPER_RIGHT.with(color)
+        ),
+        MessageType::System => format!(
+            "{}{}{}",
+            UPPER_LEFT.with(color),
+            HORIZONTAL_BAR.repeat(effective_width).with(color),
+            UPPER_RIGHT.with(color)
+        ),
     };
 
-    let body = word_wrap(message_text, width, VERTICAL_BAR.color(color));
+    let vertical_bar_styled = VERTICAL_BAR.with(color);
+    let body = word_wrap(message_text, max_width, vertical_bar_styled.to_string());
 
-    let formatted_body = if matches!(message_type, MessageType::User) {
-        let lines = body.trim_end().split('\n');
-        lines
-            .map(|line| format!("{}{}", prefix, line))
-            .collect::<Vec<_>>()
-            .join("\n")
-    } else {
-        body.trim_end().to_string()
+    let formatted_body = match message_type {
+        MessageType::User | MessageType::System => {
+            let lines = body.trim_end().split('\n');
+            lines
+                .map(|line| format!("{}{}", prefix, line))
+                .collect::<Vec<_>>()
+                .join("\n")
+        }
+        _ => body.trim_end().to_string(),
     };
 
     let last_row = format!(
         "{}{}{}",
-        BOTTOM_LEFT.color(color),
-        HORIZONTAL_BAR.repeat(effective_width).color(color),
-        BOTTOM_RIGHT.color(color)
+        BOTTOM_LEFT.with(color),
+        HORIZONTAL_BAR.repeat(effective_width).with(color),
+        BOTTOM_RIGHT.with(color)
     );
 
     println!(
@@ -96,9 +87,9 @@ pub(crate) fn print_message(message_text: &str, message_type: MessageType) {
     );
 }
 
-fn word_wrap(text: &str, width: usize, wrapper: ColoredString) -> String {
+fn word_wrap(text: &str, width: usize, wrapper: String) -> String {
     let mut result = String::new();
-    let effective_width = width - 4; // Account for wrapper chars and padding (1 on each side)
+    let effective_width = width - 4;
 
     for line in text.lines() {
         let chars: Vec<char> = line.chars().collect();
@@ -130,7 +121,6 @@ fn word_wrap(text: &str, width: usize, wrapper: ColoredString) -> String {
             ));
 
             current_pos = end_pos;
-            // Skip any additional whitespace
             while current_pos < chars.len() && chars[current_pos].is_whitespace() {
                 current_pos += 1;
             }
@@ -147,4 +137,26 @@ fn word_wrap(text: &str, width: usize, wrapper: ColoredString) -> String {
     }
 
     result
+}
+
+fn parse_color(color_name: &str) -> Color {
+    match color_name.to_lowercase().as_str() {
+        "red" => Color::Red,
+        "green" => Color::Green,
+        "yellow" => Color::Yellow,
+        "blue" => Color::Blue,
+        "magenta" => Color::Magenta,
+        "cyan" => Color::Cyan,
+        "white" => Color::White,
+        "black" => Color::Black,
+        "dark_grey" => Color::DarkGrey,
+        "light_grey" => Color::Grey, // Also known as Light Grey
+        "dark_red" => Color::DarkRed,
+        "dark_green" => Color::DarkGreen,
+        "dark_yellow" => Color::DarkYellow,
+        "dark_blue" => Color::DarkBlue,
+        "dark_magenta" => Color::DarkMagenta,
+        "dark_cyan" => Color::DarkCyan,
+        _ => Color::Reset,
+    }
 }

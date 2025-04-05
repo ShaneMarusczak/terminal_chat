@@ -2,9 +2,10 @@ use std::{collections::HashMap, sync::LazyLock};
 
 use crate::commands::{
     change_model::change_model_command, clear::clear_command, clear_config::dc,
-    command_tc::CommandTC, debug::debug_command, document::document_command, gf::gf_command,
-    help::help_command, image::image_command, load_conversation::lc_command, quit::quit_command,
-    readme::readme_command, save_conversation::sc_command, sh,
+    command_tc::CommandTC, debug::debug_command, document::document_command,
+    edit_config::ec_command, gf::gf_command, help::help_command, image::image_command,
+    load_conversation::lc_command, quit::quit_command, readme::readme_command,
+    save_conversation::sc_command, sh,
 };
 
 macro_rules! register_command {
@@ -23,6 +24,7 @@ macro_rules! register_command {
 pub static TC_COMMANDS: LazyLock<HashMap<&str, CommandTC>> = LazyLock::new(|| {
     let mut r = HashMap::new();
 
+    register_command!("ec", "Edit the application configuration.", ec_command, r);
     register_command!("dc", "Deletes the current application config file.", dc, r);
     register_command!(
         "lc",

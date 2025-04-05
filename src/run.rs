@@ -4,16 +4,21 @@ use crate::commands::handle_commands::handle_command;
 use crate::conversation::{AnthropicMessage, ConversationContext, Message, ResponseC};
 use crate::message_printer::{MessageType, print_message};
 use crate::preview_md::markdown_to_ansi;
-use crate::tc_config::{self, ConfigTC};
+use crate::tc_config::{self, get_config};
+use crate::utils::calculate_message_width;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
 use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
-    println!("\n-- terminal chat -- \n");
+    let config = tc_config::load_config().await?;
 
-    let config = Box::leak(Box::new(tc_config::load_config().await?));
+    if config.message_boxes_enabled {
+        print_message("~~~  Terminal Chat  ~~~", MessageType::System, &config);
+    } else {
+        println!("\n-- terminal chat -- \n");
+    }
 
     if !config.openai_enabled && !config.anthropic_enabled {
         return Ok(());
@@ -46,15 +51,14 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
                 "q" | "quit" => break,
                 _ => {
                     if let Err(e) =
-                        handle_command(cmd, Arc::clone(&context), Arc::clone(&dev_message), config)
-                            .await
+                        handle_command(cmd, Arc::clone(&context), Arc::clone(&dev_message)).await
                     {
                         eprintln!("Error executing command: {} With error: {}", cmd, e);
                     }
                 }
             }
         } else {
-            actually_chat(line, Arc::clone(&context), config).await?;
+            actually_chat(line, Arc::clone(&context)).await?;
         }
     }
 
@@ -71,13 +75,20 @@ fn build_interface() -> Result<Interface<DefaultTerminal>, Box<dyn Error>> {
 async fn actually_chat(
     line: String,
     context: Arc<Mutex<ConversationContext>>,
-    config: &ConfigTC,
 ) -> Result<(), Box<dyn Error>> {
     let mut ctx = context.lock().await;
-
+    let config = get_config();
     if !config.enable_streaming && config.message_boxes_enabled {
-        print!("\x1B[1A\x1B[2K"); // Move up one line and clear it                                                                                  │
-        print_message(&line, MessageType::User);
+        let width = calculate_message_width(&line, 45, 100);
+
+        // Calculate the number of lines to clear if needed
+        let line_count = (line.chars().count() / width).max(1);
+
+        for _ in 0..line_count {
+            print!("\x1B[1A\x1B[2K"); // Move up one line and clear it
+        }
+
+        print_message(&line, MessageType::User, &config);
     }
 
     ctx.input.push(Message {
@@ -93,9 +104,10 @@ async fn actually_chat(
         let message = reply.content.first().unwrap().text.clone();
 
         if config.message_boxes_enabled {
-            print_message(&message, MessageType::Assistant);
+            print_message(&message, MessageType::Assistant, &config);
+            println!();
         } else {
-            println!("\n🤖 {}\n", message);
+            println!("🤖 {}\n", message);
         }
         ctx.input.push(Message {
             role: "assistant".into(),
@@ -120,9 +132,10 @@ async fn actually_chat(
             };
 
             if config.message_boxes_enabled {
-                print_message(&s, MessageType::Assistant);
+                print_message(&s, MessageType::Assistant, &config);
+                println!();
             } else {
-                println!("\n🤖 {}\n", s);
+                println!("\n🤖 {}", s);
             }
         }
         ctx.set_stream(true);

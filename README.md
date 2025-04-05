@@ -4,16 +4,16 @@
 
 [![Rust CI](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/ShaneMarusczak/terminal_chat/actions/workflows/rust.yml)
 
-Terminal Chat is an interactive, terminal‐based chat application built with Rust. It allows you to have real-time conversations with OpenAI and Anthropic models while leveraging various commands to manage and document sessions. The project is designed to be highly efficient, minimal, and provides a responsive command-line interface with an integrated spinner and auto-completion support.
+Terminal Chat (tc) is a Rust-based command-line chat assistant that integrates with OpenAI and Anthropic APIs to provide intelligent conversational capabilities. This project supports interactive REPL use as well as a CLI mode, with advanced features such as streaming, file context importing, document and README generation, theming, and command execution.
 
 ---
 
 ## Features
 
-- **Interactive REPL Interface:** Start a conversation in a command–line REPL with rich history, autocompletion (via linefeed), and an animated spinner during long-running API calls.
+- **Interactive REPL:** A dynamic command-line chat interface with history and auto-completion.
 - **API Integration:** Communicates with OpenAI’s and Anthropic’s endpoints for chat completions and image generations.
 - **Command Suite:** Execute a variety of built-in commands including changing models, loading/saving conversations, generating README documentation, executing shell commands, and more.
-- **Custom Configuration:** Easily configure the chat model, streaming options, and custom developer prompts via a config file.
+- **Custom Configuration & Theming:** Easily customize settings such as the default chat model, streaming options, and message colors.
 - **Markdown Preview:** Render and preview markdown responses directly in the terminal with ANSI styling.
 
 ---
@@ -41,17 +41,6 @@ Terminal Chat is an interactive, terminal‐based chat application built with Ru
    ```sh
    cargo run --release
    ```
-
-4. **Configuration Setup:**
-
-TC Terminal Chat uses a JSON configuration file that is stored in your system’s configuration directory (or in the current directory as a fallback). Key configuration settings include:
-
-- **enable_streaming:** Enable/disable streaming responses (default: false).
-- **model:** The default AI model (default: `gpt-4o-mini`).
-- **dev_message:** A custom developer message that guides AI responses.
-- **preview_md:** When enabled, non-streamed responses are displayed as rendered markdown.
-
-You can update these settings interactively on first run or manually by editing the file (`tc_config.json`).
 
 ---
 
@@ -82,12 +71,17 @@ You can update these settings interactively on first run or manually by editing 
 
 TC Terminal Chat uses a JSON configuration file that is stored in your system’s configuration directory (or in the current directory as a fallback). Key configuration settings include:
 
-- **enable_streaming:** Enable/disable streaming responses (default: false).
-- **model:** The default AI model (default: `gpt-4o-mini`).
-- **dev_message:** A custom developer message that guides AI responses.
-- **preview_md:** When enabled, non-streamed responses are displayed as rendered markdown.
+- **enable_streaming:** Toggle streaming responses.
+- **model:** The current chat model in use (e.g., "gpt-4o", "o3-mini").
+- **all_models:** List of available models combining Anthropic and OpenAI models.
+- **dev_message:** A custom developer instruction that influences chat behavior.
+- **preview_md:** Whether to display responses rendered in ANSI-styled Markdown.
+- **anthropic_enabled/openai_enabled:** Automatically enabled based on whether the API keys are set.
+- **message_boxes_enabled:** Option to display messages in framed boxes, which disables streaming and markdown preview.
+- **theme:** Allows configuration of message colors (system, user, assistant).
+  Default colors are: system (yellow), user (green), assistant (blue).
 
-You can update these settings interactively on first run or manually by editing the file (`tc_config.json`).
+You can update the configuration interactively with the `:ec` command in the REPL.
 
 ---
 
@@ -107,5 +101,7 @@ Contributions are welcome! Please follow these steps:
 This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
 
 ---
+
+Terminal Chat leverages multiple third-party libraries such as `tokio`, `serde`, `pulldown-cmark`, `crossterm`, and others. Please refer to the [Cargo.toml](Cargo.toml) for a complete list of dependencies.
 
 Happy chatting!
