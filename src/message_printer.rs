@@ -25,8 +25,8 @@ pub(crate) fn print_message(message_text: &str, message_type: MessageType) {
     let is_single_line = lines.len() == 1;
 
     let color = match message_type {
-        MessageType::User => "green",     // Set the color for user messages
-        MessageType::Assistant => "blue", // Set the color for assistant messages
+        MessageType::User => "green",
+        MessageType::Assistant => "blue",
     };
 
     let width = if is_single_line {
@@ -101,12 +101,10 @@ fn word_wrap(text: &str, width: usize, wrapper: ColoredString) -> String {
     let effective_width = width - 4; // Account for wrapper chars and padding (1 on each side)
 
     for line in text.lines() {
-        // Convert line to a vector of characters
         let chars: Vec<char> = line.chars().collect();
         let mut current_pos = 0;
 
         while current_pos < chars.len() {
-            // Determine the end position based on characters rather than bytes
             let mut end_pos = (current_pos + effective_width).min(chars.len());
 
             // If we're not at the end and the next character isn't whitespace,
@@ -120,7 +118,6 @@ fn word_wrap(text: &str, width: usize, wrapper: ColoredString) -> String {
                 }
             }
 
-            // Collect the substring safely from the char vector
             let line_content: String = chars[current_pos..end_pos].iter().collect();
             let line_content = line_content.trim_end();
 

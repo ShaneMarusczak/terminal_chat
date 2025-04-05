@@ -8,7 +8,7 @@ use std::{env, error::Error, fs::File, io::stdin, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct ConfigTC {
-    #[serde(default = "default_streaming")]
+    #[serde(default)]
     pub(crate) enable_streaming: bool,
 
     #[serde(default)]
@@ -37,10 +37,6 @@ fn default_dev_message() -> String {
     MESSAGES["developer"].to_string()
 }
 
-fn default_streaming() -> bool {
-    false
-}
-
 fn default_anthropic() -> bool {
     env::var("ANTHROPIC_API_KEY").is_ok()
 }
@@ -52,7 +48,7 @@ fn default_openai() -> bool {
 pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
     if !default_anthropic() && !default_openai() {
         eprintln!(
-            "\nNo API keys detected, you must have an Anthropic key or an OpenAI key to use this app. Support for Local AI instances in development.\n"
+            "\nNo API keys detected, you must have an Anthropic key and/or an OpenAI key to use this app. Support for Local AI instances in development.\n"
         );
         return Ok(ConfigTC::default(vec![]));
     }
@@ -174,11 +170,11 @@ pub(crate) fn get_config_path() -> PathBuf {
 impl ConfigTC {
     pub fn default(all_models: Vec<String>) -> Self {
         Self {
-            enable_streaming: default_streaming(),
+            enable_streaming: false,
             model: all_models.first().unwrap().to_owned(),
             all_models,
             dev_message: default_dev_message(),
-            preview_md: true,
+            preview_md: false,
             anthropic_enabled: default_anthropic(),
             openai_enabled: default_openai(),
             message_boxes_enabled: false,
