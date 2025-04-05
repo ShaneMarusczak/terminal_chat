@@ -3,15 +3,17 @@ name: Create Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
-  contents: write    # allow creating releases & uploading assets
+  contents: write
 
 jobs:
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.release_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -77,8 +79,7 @@ jobs:
       - name: Publish Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
+          release_id: ${{ needs.create_release.outputs.release_id }}
           files: artifacts/${{ matrix.release_suffix }}/*
-          asset_name: ${{ matrix.asset_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
