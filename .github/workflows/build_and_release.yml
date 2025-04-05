@@ -13,7 +13,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     outputs:
-      release_id: ${{ steps.create_release.outputs.release_id }}
+      release_id: ${{ steps.create_release.outputs.id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,11 +22,10 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -35,51 +34,50 @@ jobs:
     needs: create_release
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            release_suffix: ubuntu
-            asset_name: tc-linux
+            target: x86_64-unknown-linux-gnu
+            artifact_name: tc-linux
           - os: macos-latest
-            release_suffix: mac
-            asset_name: tc-mac
+            target: x86_64-apple-darwin
+            artifact_name: tc-macos
           - os: windows-latest
-            release_suffix: windows
-            asset_name: tc-win.exe
+            target: x86_64-pc-windows-msvc
+            artifact_name: tc-windows.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: ${{ matrix.target }}
           override: true
 
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Archive the build
+      - name: Rename Binary
         run: |
-          ART_DIR=artifacts/${{ matrix.release_suffix }}
-          mkdir -p "$ART_DIR"
+          mkdir -p artifacts
           if [[ "${{ matrix.os }}" == 'windows-latest' ]]; then
-            cp target/release/tc.exe "$ART_DIR"/
+            mv target/${{ matrix.target }}/release/tc.exe artifacts/${{ matrix.artifact_name }}
           else
-            cp target/release/tc "$ART_DIR"/
+            mv target/${{ matrix.target }}/release/tc artifacts/${{ matrix.artifact_name }}
           fi
         shell: bash
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.release_suffix }}-binaries
-          path: artifacts/${{ matrix.release_suffix }}/
+          name: ${{ matrix.artifact_name }}
+          path: artifacts/${{ matrix.artifact_name }}
 
-      - name: Publish Release Asset
+      - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
-          release_id: ${{ needs.create_release.outputs.release_id }}
-          files: artifacts/${{ matrix.release_suffix }}/*
+          files: artifacts/${{ matrix.artifact_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
