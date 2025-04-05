@@ -6,7 +6,7 @@ use crate::utils::read_user_input;
 
 use crate::commands::command_tc::CommandResult;
 
-pub async fn image_command(cc: Option<CommandContext<'_>>) -> CommandResult {
+pub async fn image_command(cc: Option<CommandContext>) -> CommandResult {
     if cc.is_some() {
         let model_choice = read_user_input("Choose model (2 for DALL-E 2, 3 for DALL-E 3): ");
         let model = match model_choice.trim() {

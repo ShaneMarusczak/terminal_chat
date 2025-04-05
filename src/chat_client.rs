@@ -55,6 +55,8 @@ pub async fn stream(context: &mut ConversationContext) -> Result<(), Box<dyn Err
         let next = next?;
         let s = std::str::from_utf8(&next)?;
 
+        // println!("\n\ns:{s}\n\n");
+
         for p in s.split("data: ") {
             if let Some(real) = p.split("event:").next() {
                 if let Ok(d) = serde_json::from_str::<DeltaData>(real.trim()) {

@@ -4,7 +4,7 @@ use crate::conversation::Message;
 use std::fs;
 use std::path::Path;
 
-pub async fn gf_command(cc: Option<CommandContext<'_>>) -> CommandResult {
+pub async fn gf_command(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
         let mut ctx = cc.conversation_context.lock().await;
         if cc.args.is_empty() {

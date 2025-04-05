@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::commands::command_tc::CommandResult;
 
-pub async fn document_command(cc: Option<CommandContext<'_>>) -> CommandResult {
+pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
         let ctx = cc.conversation_context.lock().await;
         let mut new_context = ConversationContext::new("o3-mini", false);

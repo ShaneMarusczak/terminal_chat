@@ -3,7 +3,7 @@ use std::process::Command;
 
 use crate::commands::command_tc::CommandResult;
 
-pub async fn clear_command(cc: Option<CommandContext<'_>>) -> CommandResult {
+pub async fn clear_command(cc: Option<CommandContext>) -> CommandResult {
     {
         if let Some(cc) = cc {
             let mut ctx = cc.conversation_context.lock().await;

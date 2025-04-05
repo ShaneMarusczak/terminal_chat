@@ -4,7 +4,7 @@ use crate::tc_config::get_config_path;
 use crate::utils::confirm_action;
 use std::process::Command;
 
-pub async fn dc(cc: Option<CommandContext<'_>>) -> CommandResult {
+pub async fn dc(cc: Option<CommandContext>) -> CommandResult {
     if cc.is_some() {
         let path = get_config_path();
 
