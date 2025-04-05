@@ -2,8 +2,9 @@ use crate::chat_client::{anthropic_chat, send_request, stream};
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
 use crate::conversation::{AnthropicMessage, ConversationContext, Message, ResponseC};
+use crate::message_printer::{MessageType, print_message};
 use crate::preview_md::markdown_to_ansi;
-use crate::tc_config;
+use crate::tc_config::{self, ConfigTC};
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
 use std::error::Error;
 use std::sync::Arc;
@@ -53,7 +54,7 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
                 }
             }
         } else {
-            actually_chat(line, Arc::clone(&context), config.enable_streaming).await?;
+            actually_chat(line, Arc::clone(&context), config).await?;
         }
     }
 
@@ -70,9 +71,14 @@ fn build_interface() -> Result<Interface<DefaultTerminal>, Box<dyn Error>> {
 async fn actually_chat(
     line: String,
     context: Arc<Mutex<ConversationContext>>,
-    enable_streaming: bool,
+    config: &ConfigTC,
 ) -> Result<(), Box<dyn Error>> {
     let mut ctx = context.lock().await;
+
+    if !config.enable_streaming && config.message_boxes_enabled {
+        print!("\x1B[1A\x1B[2K"); // Move up one line and clear it                                                                                  │
+        print_message(&line, MessageType::User);
+    }
 
     ctx.input.push(Message {
         role: "user".into(),
@@ -86,27 +92,38 @@ async fn actually_chat(
 
         let message = reply.content.first().unwrap().text.clone();
 
-        println!("\n🤖 {}\n", message);
-
+        if config.message_boxes_enabled {
+            print_message(&message, MessageType::Assistant);
+        } else {
+            println!("\n🤖 {}\n", message);
+        }
         ctx.input.push(Message {
             role: "assistant".into(),
             content: message.clone(),
         });
 
         ctx.set_stream(true);
-    } else if !enable_streaming || ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
+    } else if !config.enable_streaming || ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
         ctx.set_stream(false);
         let response: ResponseC = send_request("chat", &*ctx).await?;
         if let Some(choice) = response.choices.first() {
             let reply = choice.message.content.clone();
-            {
-                ctx.input.push(Message {
-                    role: "assistant".into(),
-                    content: reply.clone(),
-                });
+            ctx.input.push(Message {
+                role: "assistant".into(),
+                content: reply.clone(),
+            });
+
+            let s = if config.preview_md {
+                markdown_to_ansi(&reply)
+            } else {
+                reply
+            };
+
+            if config.message_boxes_enabled {
+                print_message(&s, MessageType::Assistant);
+            } else {
+                println!("\n🤖 {}\n", s);
             }
-            let s = markdown_to_ansi(&reply);
-            println!("\n🤖 {}\n", s);
         }
         ctx.set_stream(true);
     } else {
@@ -121,7 +138,7 @@ pub(crate) async fn as_cli_tool(args: &[String]) -> Result<(), Box<dyn Error>> {
         1 => match args[0].as_str() {
             "-h" | "--help" => {
                 if let Some(help_command) = TC_COMMANDS.get("help") {
-                    return (help_command.run)(None).await; // Call help command
+                    return (help_command.run)(None).await;
                 } else {
                     eprintln!("Help command not found!");
                 }

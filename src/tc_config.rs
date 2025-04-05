@@ -28,6 +28,9 @@ pub(crate) struct ConfigTC {
 
     #[serde(default = "default_openai")]
     pub(crate) openai_enabled: bool,
+
+    #[serde(default)]
+    pub(crate) message_boxes_enabled: bool,
 }
 
 fn default_dev_message() -> String {
@@ -105,12 +108,21 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
         }
 
         config.enable_streaming = confirm_action(
-            "Would you like to enable streaming for eligible models (experimental)? (y/n)",
+            "Would you like to enable streaming for eligible OpenAI models (experimental, Anthropic models under development)? (y/n)",
         );
 
         config.preview_md = confirm_action(
             "Would you like to display non-streamed model responses as rendered markdown (experimental)? (y/n)",
         );
+
+        config.message_boxes_enabled = confirm_action(
+            "Would you like to display chat messages in text boxes? (experimental, disables streaming and markdown) (y/n)",
+        );
+
+        if config.message_boxes_enabled {
+            config.enable_streaming = false;
+            config.preview_md = false;
+        }
 
         if confirm_action("Would you like to write a custom developer message for the AI? (y/n)") {
             let mut prompt = String::new();
@@ -119,8 +131,12 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
         }
 
         println!(
-            "\nConfiguration:\nModel: {}\nEnable Streaming: {}\nPreview Markdown: {}\nDeveloper Message: {}\n",
-            config.model, config.enable_streaming, config.preview_md, config.dev_message
+            "\nConfiguration:\nModel: {}\nEnable Streaming: {}\nPreview Markdown: {}\nMessage Boxes: {}\nDeveloper Message:\n {}\n",
+            config.model,
+            config.enable_streaming,
+            config.preview_md,
+            config.message_boxes_enabled,
+            config.dev_message
         );
         write_config(&config).expect("Error writing config");
 
@@ -165,6 +181,7 @@ impl ConfigTC {
             preview_md: true,
             anthropic_enabled: default_anthropic(),
             openai_enabled: default_openai(),
+            message_boxes_enabled: false,
         }
     }
 }

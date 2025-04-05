@@ -3,6 +3,7 @@ use std::error::Error;
 mod chat_client;
 mod commands;
 mod conversation;
+mod message_printer;
 mod messages;
 mod preview_md;
 mod run;
