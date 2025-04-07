@@ -59,15 +59,15 @@ pub fn calculate_message_width(
     message_text: &str,
     max_chat_width: usize,
     message_width_percent: usize,
-) -> usize {
+) -> (usize, usize) {
     let terminal_width = termsize::get().map(|size| size.cols as usize).unwrap_or(80);
     let max_width = terminal_width.min(max_chat_width) * message_width_percent / 100;
 
     let lines: Vec<&str> = message_text.lines().collect();
     if lines.len() == 1 {
-        (lines[0].len() + 4).min(max_width) // Add 4 for padding
+        ((lines[0].len() + 4).min(max_width), terminal_width) // Add 4 for padding
     } else {
-        max_width
+        (max_width, terminal_width)
     }
 }
 
@@ -84,18 +84,18 @@ pub fn extract_message_text(response: &Response) -> Option<String> {
     None
 }
 
-pub fn read_user_input(prompt: &str) -> String {
-    let interface = Interface::new("tc").expect("error making interface");
-    interface.set_prompt(prompt).unwrap();
-    if let ReadResult::Input(line) = interface.read_line().unwrap() {
-        return line.trim().to_string();
+pub fn read_user_input(prompt: &str) -> Result<String, Box<dyn Error>> {
+    let interface = Interface::new("tc")?;
+    interface.set_prompt(prompt)?;
+    if let ReadResult::Input(line) = interface.read_line()? {
+        return Ok(line.trim().to_string());
     }
     unreachable!()
 }
 
 pub fn confirm_action(prompt: &str) -> bool {
     let response = read_user_input(prompt);
-    response.eq_ignore_ascii_case("y") || response.eq_ignore_ascii_case("yes")
+    response.is_ok_and(|c| c.eq_ignore_ascii_case("y"))
 }
 
 const OPENAI_MODELS: &[&str] = &[
@@ -111,7 +111,7 @@ pub async fn get_all_model_names(
     openai_enabled: bool,
 ) -> Result<Vec<String>, Box<dyn Error>> {
     let models_response: ModelsResponse = if anthropic_enabled {
-        serde_json::from_str(&get_models().await.unwrap()).unwrap()
+        serde_json::from_str(&get_models().await?)?
     } else {
         ModelsResponse { data: vec![] }
     };

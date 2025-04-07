@@ -8,7 +8,7 @@ use crate::commands::command_tc::CommandResult;
 
 pub async fn image_command(cc: Option<CommandContext>) -> CommandResult {
     if cc.is_some() {
-        let model_choice = read_user_input("Choose model (2 for DALL-E 2, 3 for DALL-E 3): ");
+        let model_choice = read_user_input("Choose model (2 for DALL-E 2, 3 for DALL-E 3): ")?;
         let model = match model_choice.trim() {
             "2" => "dall-e-2",
             "3" => "dall-e-3",
@@ -18,7 +18,7 @@ pub async fn image_command(cc: Option<CommandContext>) -> CommandResult {
             }
         };
 
-        let prompt = read_user_input("Image Prompt: ");
+        let prompt = read_user_input("Image Prompt: ")?;
         let image_request = ImageRequest {
             model: model.into(),
             prompt,

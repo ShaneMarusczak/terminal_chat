@@ -22,7 +22,7 @@ pub async fn get_models() -> Result<String, Box<dyn Error>> {
     let client = Client::new();
     let response = client
         .get(ANTHROPIC_MODELS)
-        .header("x-api-key", env::var("ANTHROPIC_API_KEY").unwrap())
+        .header("x-api-key", env::var("ANTHROPIC_API_KEY")?)
         .header("anthropic-version", "2023-06-01")
         .send()
         .await?
@@ -33,7 +33,7 @@ pub async fn get_models() -> Result<String, Box<dyn Error>> {
 
 pub async fn stream(context: &mut ConversationContext) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
-    let api_key = env::var("OPENAI_API_KEY").map_err(|_| "OPENAI_API_KEY not set")?;
+    let api_key = env::var("OPENAI_API_KEY")?;
 
     println!();
     print!("🤖 ");
@@ -82,12 +82,13 @@ where
     let client = Client::new();
     let anthropic_request = AnthropicRequest::from_context(context, 2048);
     let request_json = serde_json::to_string(&anthropic_request)?;
+    let api_key = env::var("ANTHROPIC_API_KEY")?;
 
     let response_text = run_with_spinner(async {
         client
             .post(ANTHROPIC_MESSAGES)
             .header("Content-Type", "application/json")
-            .header("x-api-key", env::var("ANTHROPIC_API_KEY").unwrap())
+            .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01")
             .body(request_json)
             .send()

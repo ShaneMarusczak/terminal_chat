@@ -76,11 +76,9 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
                     write_config(&config, false)?;
                 }
                 if !all_models.contains(&config.model) {
-                    eprintln!(
-                        "\nInvalid model found in config. Using: {}",
-                        all_models.first().unwrap()
-                    );
-                    config.model = all_models.first().unwrap().to_owned();
+                    let first = all_models.first().ok_or("No models found")?;
+                    eprintln!("\nInvalid model found in config. Using: {}", first);
+                    config.model = first.to_owned();
                 }
                 config
             }
@@ -92,25 +90,33 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
     } else if confirm_action("No config file found. Would you like to set one up? (y/n)") {
         let mut config = ConfigTC::default(all_models.clone());
         config_interview(&mut config);
-        write_config(&config, true).expect("Error writing config");
+        write_config(&config, true)?;
         config
     } else {
         println!("Using default values.");
         ConfigTC::default(all_models)
     };
 
-    let mut global = GLOBAL_CONFIG.write().unwrap();
+    let mut global = GLOBAL_CONFIG.write()?;
     *global = rv.clone();
     Ok(rv)
 }
 
-pub fn get_config() -> ConfigTC {
-    GLOBAL_CONFIG.read().unwrap().clone()
+pub fn get_config() -> Result<ConfigTC, Box<dyn Error>> {
+    match GLOBAL_CONFIG.read() {
+        Ok(gc) => Ok(gc.clone()),
+        Err(_) => Err("💩".into()),
+    }
 }
 
-pub fn write_config(config: &ConfigTC, prompt: bool) -> std::io::Result<()> {
+pub fn write_config(config: &ConfigTC, prompt: bool) -> Result<(), Box<dyn Error>> {
     let path = get_config_path();
-    if !prompt || confirm_action(&format!("Save to {}?", path.to_str().unwrap())) {
+    if !prompt
+        || confirm_action(&format!(
+            "Save to {}?",
+            path.to_str().ok_or("To str failed")?
+        ))
+    {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -126,8 +132,10 @@ pub(crate) fn get_config_path() -> PathBuf {
         config_dir.push("tc_config.json");
         config_dir
     } else {
-        // Fallback to current directory if the dirs crate fails
-        std::env::current_dir().unwrap().join("tc_config.json")
+        match std::env::current_dir() {
+            Ok(dir) => dir.join("tc_config.json"),
+            Err(_) => PathBuf::from("tc_config.json"),
+        }
     }
 }
 
@@ -158,7 +166,8 @@ pub fn config_interview(config: &mut ConfigTC) {
     }
 
     config.model = loop {
-        let input = read_user_input("Please select a model by typing its number:");
+        let input =
+            read_user_input("Please select a model by typing its number:").unwrap_or_default();
         if let Ok(num) = input.trim().parse::<usize>() {
             if num > 0 && num <= config.all_models.len() {
                 break config.all_models[num - 1].clone();
@@ -182,7 +191,8 @@ pub fn config_interview(config: &mut ConfigTC) {
     }
 
     if confirm_action("Write a custom developer message for the AI? (y/n)") {
-        config.dev_message = read_user_input("Enter your custom message:");
+        config.dev_message =
+            read_user_input("Enter your custom message:").unwrap_or_else(|_| default_dev_message());
     }
 
     set_custom_theme(config);
@@ -226,7 +236,7 @@ fn parse_color(color_name: &str) -> Color {
 }
 fn read_valid_color(prompt: &str) -> String {
     loop {
-        let input = read_user_input(prompt);
+        let input = read_user_input(prompt).unwrap_or_default();
         if is_valid_color(&input) {
             return input;
         }
