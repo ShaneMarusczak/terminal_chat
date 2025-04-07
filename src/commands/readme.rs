@@ -62,7 +62,7 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
 
         preview_markdown(&result_content);
         let sanitized_filename =
-            read_user_input("\nEnter the README file name to save (without extension): ");
+            read_user_input("\nEnter the README file name to save (without extension): ")?;
 
         if sanitized_filename.is_empty() {
             eprintln!("Invalid filename. Document not saved.");

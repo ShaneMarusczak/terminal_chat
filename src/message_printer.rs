@@ -1,5 +1,7 @@
 use crate::{tc_config::ConfigTC, utils::calculate_message_width};
 use crossterm::style::{Color, Stylize};
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 const UPPER_LEFT: &str = "┌";
 const UPPER_RIGHT: &str = "┐";
@@ -14,18 +16,33 @@ pub(crate) enum MessageType {
     System,
 }
 
-const MAX_CHAT_WIDTH: usize = 50;
+const MAX_CHAT_WIDTH: usize = 70;
 const MESSAGE_WIDTH_PERCENT: usize = 80;
 
 pub(crate) fn print_message(message_text: &str, message_type: MessageType, config: &ConfigTC) {
-    let max_width = calculate_message_width(message_text, MAX_CHAT_WIDTH, MESSAGE_WIDTH_PERCENT);
+    let lines: Vec<&str> = message_text.lines().collect();
 
-    let effective_width = max_width - 2; // For the box characters on both sides
+    let (calculated_width, terminal_width) =
+        calculate_message_width(message_text, MAX_CHAT_WIDTH, MESSAGE_WIDTH_PERCENT);
+
+    let min_width = match message_type {
+        MessageType::User => 6,
+        MessageType::Assistant => 11,
+        MessageType::System => 0,
+    };
+
+    let effective_max_width = if lines.len() > 1 && matches!(message_type, MessageType::System) {
+        let max_line_length = lines.iter().map(|line| line.width()).max().unwrap_or(0);
+        max_line_length.min(calculated_width) + 4
+    } else {
+        calculated_width
+    };
+    let effective_width = effective_max_width.max(min_width) - 2;
 
     let prefix = match message_type {
-        MessageType::User => " ".repeat(MAX_CHAT_WIDTH - max_width),
+        MessageType::User => " ".repeat((terminal_width.min(MAX_CHAT_WIDTH) - 2) - effective_width),
         MessageType::System => {
-            let space = (MAX_CHAT_WIDTH - max_width) / 2;
+            let space = (terminal_width.min(MAX_CHAT_WIDTH) - effective_width) / 2;
             " ".repeat(space)
         }
         _ => String::new(),
@@ -61,17 +78,18 @@ pub(crate) fn print_message(message_text: &str, message_type: MessageType, confi
     };
 
     let vertical_bar_styled = VERTICAL_BAR.with(color);
-    let body = word_wrap(message_text, max_width, vertical_bar_styled.to_string());
+    let body = word_wrap(
+        message_text,
+        effective_max_width.max(min_width),
+        vertical_bar_styled.to_string(),
+    );
 
-    let formatted_body = match message_type {
-        MessageType::User | MessageType::System => {
-            let lines = body.trim_end().split('\n');
-            lines
-                .map(|line| format!("{}{}", prefix, line))
-                .collect::<Vec<_>>()
-                .join("\n")
-        }
-        _ => body.trim_end().to_string(),
+    let formatted_body = {
+        let lines = body.trim_end().split('\n');
+        lines
+            .map(|line| format!("{}{}", prefix, line))
+            .collect::<Vec<_>>()
+            .join("\n")
     };
 
     let last_row = format!(
@@ -88,45 +106,58 @@ pub(crate) fn print_message(message_text: &str, message_type: MessageType, confi
 }
 
 fn word_wrap(text: &str, width: usize, wrapper: String) -> String {
-    let mut result = String::new();
     let effective_width = width - 4;
+    let mut result = String::new();
 
     for line in text.lines() {
-        let chars: Vec<char> = line.chars().collect();
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
         let mut current_pos = 0;
 
-        while current_pos < chars.len() {
-            let mut end_pos = (current_pos + effective_width).min(chars.len());
+        while current_pos < graphemes.len() {
+            let mut current_width = 0;
+            let mut end_pos = current_pos;
 
-            // If we're not at the end and the next character isn't whitespace,
-            // try to move the end_pos back to the last whitespace.
-            if end_pos < chars.len() && !chars[end_pos].is_whitespace() {
-                if let Some(last_space) = chars[current_pos..end_pos]
+            // Accumulate graphemes' width until we reach the effective width
+            while end_pos < graphemes.len() {
+                let g_width = graphemes[end_pos].width();
+                if current_width + g_width > effective_width {
+                    break;
+                }
+                current_width += g_width;
+                end_pos += 1;
+            }
+
+            // Try to backtrack to the last space if we're mid-word
+            if end_pos < graphemes.len() && !graphemes[end_pos].trim().is_empty() {
+                if let Some(last_space) = graphemes[current_pos..end_pos]
                     .iter()
-                    .rposition(|c| c.is_whitespace())
+                    .rposition(|g| g.trim().is_empty())
                 {
                     end_pos = current_pos + last_space + 1;
                 }
             }
 
-            let line_content: String = chars[current_pos..end_pos].iter().collect();
-            let line_content = line_content.trim_end();
+            let line_content = graphemes[current_pos..end_pos].join("");
+            let final_width: usize = line_content.graphemes(true).map(|g| g.width()).sum();
+            let final_dif = (effective_width - final_width).max(0);
 
             result.push_str(&format!(
-                "{} {:<width$} {}\n",
+                "{} {}{} {}\n",
                 wrapper,
                 line_content,
-                wrapper,
-                width = effective_width
+                " ".repeat(final_dif),
+                wrapper
             ));
 
+            // Move past any trailing spaces
             current_pos = end_pos;
-            while current_pos < chars.len() && chars[current_pos].is_whitespace() {
+            while current_pos < graphemes.len() && graphemes[current_pos].trim().is_empty() {
                 current_pos += 1;
             }
         }
     }
 
+    // If the entire text was empty, add one empty line
     if result.is_empty() {
         result.push_str(&format!(
             "{} {} {}\n",

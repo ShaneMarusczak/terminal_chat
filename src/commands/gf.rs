@@ -1,6 +1,8 @@
 use crate::commands::command_context::CommandContext;
 use crate::commands::command_tc::CommandResult;
 use crate::conversation::Message;
+use crate::message_printer::{MessageType, print_message};
+use crate::tc_config::get_config;
 use std::fs;
 use std::path::Path;
 
@@ -23,7 +25,8 @@ pub async fn gf_command(cc: Option<CommandContext>) -> CommandResult {
                         role: "user".to_string(),
                         content: format!("{}\n\n:::\n\n{}", trimmed_path, content),
                     });
-                    println!("\nAdded {} to conversation context\n", trimmed_path);
+                    let message = format!("Added: {trimmed_path}");
+                    print_message(&message, MessageType::System, &get_config()?);
                 }
                 Err(e) => eprintln!("Error reading {}: {}\n", trimmed_path, e),
             }

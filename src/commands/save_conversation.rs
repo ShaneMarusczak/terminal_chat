@@ -11,7 +11,7 @@ pub async fn sc_command(cc: Option<CommandContext>) -> CommandResult {
 
         let as_json = serde_json::to_string(&*current_convo)?;
 
-        let convo_name = read_user_input("Conversation name: ");
+        let convo_name = read_user_input("Conversation name: ")?;
 
         if !Path::exists(Path::new("conversations")) {
             fs::create_dir("conversations")?;

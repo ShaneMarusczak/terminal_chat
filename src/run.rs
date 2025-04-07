@@ -13,12 +13,7 @@ use tokio::sync::Mutex;
 
 pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
     let config = tc_config::load_config().await?;
-
-    if config.message_boxes_enabled {
-        print_message("~~~  Terminal Chat  ~~~", MessageType::System, &config);
-    } else {
-        println!("\n-- terminal chat -- \n");
-    }
+    print_message("~~~  Terminal Chat  ~~~", MessageType::System, &config);
 
     if !config.openai_enabled && !config.anthropic_enabled {
         return Ok(());
@@ -77,17 +72,19 @@ async fn actually_chat(
     context: Arc<Mutex<ConversationContext>>,
 ) -> Result<(), Box<dyn Error>> {
     let mut ctx = context.lock().await;
-    let config = get_config();
+    let config = get_config()?;
     if !config.enable_streaming && config.message_boxes_enabled {
-        let width = calculate_message_width(&line, 45, 100);
+        let (width, terminal_width) = calculate_message_width(&line, 70, 80);
 
-        // Calculate the number of lines to clear if needed
-        let line_count = (line.chars().count() / width).max(1);
+        let width = width.min(terminal_width);
 
+        let line_len = line.chars().count();
+        let line_count = (line_len / width) + if line_len % width == 0 { 0 } else { 1 };
+
+        // Clear previous lines
         for _ in 0..line_count {
-            print!("\x1B[1A\x1B[2K"); // Move up one line and clear it
+            print!("\x1B[1A\x1B[2K");
         }
-
         print_message(&line, MessageType::User, &config);
     }
 
@@ -101,7 +98,7 @@ async fn actually_chat(
 
         let reply: AnthropicMessage = anthropic_chat(&ctx).await?;
 
-        let message = reply.content.first().unwrap().text.clone();
+        let message = reply.content.first().ok_or("No content")?.text.clone();
 
         if config.message_boxes_enabled {
             print_message(&message, MessageType::Assistant, &config);

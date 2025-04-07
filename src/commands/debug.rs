@@ -12,7 +12,7 @@ pub async fn debug_command(cc: Option<CommandContext>) -> CommandResult {
         }
 
         // Get the current config
-        let config = get_config();
+        let config = get_config()?;
         print_config(&config);
         println!();
     }
