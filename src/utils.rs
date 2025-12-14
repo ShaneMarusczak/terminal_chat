@@ -154,6 +154,42 @@ fn filter_models(models: Vec<String>) -> Vec<String> {
         .collect()
 }
 
+/// Extracts the base model name without date suffix
+fn get_base_model_name(model: &str) -> &str {
+    // For models like "gpt-4o-2024-11-20" or "claude-3-5-sonnet-20241022"
+    // Extract the base name by removing the date suffix
+
+    // Find the last date-like pattern (YYYY-MM-DD or YYYYMMDD)
+    let parts: Vec<&str> = model.rsplitn(2, '-').collect();
+    if parts.len() == 2 {
+        let potential_date = parts[0];
+        // Check if it looks like a date (starts with 20 and has 8 or 10 chars with digits/hyphens)
+        if potential_date.starts_with("20")
+            && potential_date.len() >= 8
+            && potential_date.chars().all(|c| c.is_ascii_digit() || c == '-') {
+            return parts[1];
+        }
+    }
+
+    model
+}
+
+/// Deduplicates models, keeping only the newest version of each base model
+fn deduplicate_models(models: Vec<String>) -> Vec<String> {
+    let mut seen_bases = HashSet::new();
+    let mut result = Vec::new();
+
+    // Models are already sorted with newest first, so first occurrence is the newest
+    for model in models {
+        let base = get_base_model_name(&model);
+        if seen_bases.insert(base.to_string()) {
+            result.push(model);
+        }
+    }
+
+    result
+}
+
 /// Sorts models with preferred models first
 fn sort_models(models: &mut [String]) {
     models.sort_by(|a, b| {
@@ -246,6 +282,7 @@ pub async fn get_all_model_names(
     }
 
     sort_models(&mut all_models);
+    let all_models = deduplicate_models(all_models);
 
     Ok(all_models)
 }
