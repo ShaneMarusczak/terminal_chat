@@ -183,6 +183,8 @@ fn filter_models(models: Vec<String>) -> Vec<String> {
                 || m_lower.contains("preview")
                 || m_lower.contains("nano")
                 || m_lower.contains("turbo")
+                || m_lower.contains("latest")
+                || m_lower.contains("search-api")
             {
                 return false;
             }
