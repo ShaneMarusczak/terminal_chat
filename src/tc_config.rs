@@ -1,6 +1,6 @@
 use crate::{
     messages::MESSAGES,
-    utils::{confirm_action, read_user_input, sequence_equals},
+    utils::{confirm_action, get_default_model, read_user_input, sequence_equals},
 };
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
@@ -71,9 +71,9 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
                     write_config(&config, false)?;
                 }
                 if !all_models.contains(&config.model) {
-                    let first = all_models.first().ok_or("No models found")?;
-                    eprintln!("\nInvalid model found in config. Using: {}", first);
-                    config.model = first.to_owned();
+                    let default = get_default_model(&all_models, anthropic_enabled);
+                    eprintln!("\nInvalid model found in config. Using: {}", default);
+                    config.model = default;
                 }
                 config
             }
@@ -137,15 +137,13 @@ pub(crate) fn get_config_path() -> PathBuf {
 
 impl ConfigTC {
     pub fn default(all_models: Vec<String>) -> Self {
-        let default_model = all_models
-            .first()
-            .unwrap_or(&"default_model_name".to_string())
-            .to_owned();
+        let anthropic_enabled = default_anthropic();
+        let default_model = get_default_model(&all_models, anthropic_enabled);
         Self {
             model: default_model,
             all_models,
             dev_message: default_dev_message(),
-            anthropic_enabled: default_anthropic(),
+            anthropic_enabled,
             openai_enabled: default_openai(),
             theme: default_theme(),
         }

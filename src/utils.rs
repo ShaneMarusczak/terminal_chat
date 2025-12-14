@@ -125,6 +125,94 @@ struct OpenAIModelsResponse {
     data: Vec<OpenAIModel>,
 }
 
+/// Filters out unwanted models from the list
+fn filter_models(models: Vec<String>) -> Vec<String> {
+    models
+        .into_iter()
+        .filter(|m| {
+            let m_lower = m.to_lowercase();
+
+            // Exclude fine-tuned models (contain :)
+            if m.contains(':') {
+                return false;
+            }
+
+            // Exclude old/deprecated OpenAI models
+            if m_lower.starts_with("ada")
+                || m_lower.starts_with("babbage")
+                || m_lower.starts_with("curie")
+                || m_lower.starts_with("davinci")
+                || m_lower.starts_with("text-")
+                || m_lower.starts_with("code-")
+                || m_lower.contains("instruct")
+            {
+                return false;
+            }
+
+            true
+        })
+        .collect()
+}
+
+/// Sorts models with preferred models first
+fn sort_models(models: &mut [String]) {
+    models.sort_by(|a, b| {
+        let a_lower = a.to_lowercase();
+        let b_lower = b.to_lowercase();
+
+        // Prioritize Claude Sonnet models
+        let a_sonnet = a_lower.contains("sonnet");
+        let b_sonnet = b_lower.contains("sonnet");
+        if a_sonnet != b_sonnet {
+            return b_sonnet.cmp(&a_sonnet);
+        }
+
+        // Then GPT-4o models
+        let a_gpt4o = a_lower.starts_with("gpt-4o");
+        let b_gpt4o = b_lower.starts_with("gpt-4o");
+        if a_gpt4o != b_gpt4o {
+            return b_gpt4o.cmp(&a_gpt4o);
+        }
+
+        // Then other GPT-4 models
+        let a_gpt4 = a_lower.starts_with("gpt-4");
+        let b_gpt4 = b_lower.starts_with("gpt-4");
+        if a_gpt4 != b_gpt4 {
+            return b_gpt4.cmp(&a_gpt4);
+        }
+
+        // Then Claude Opus
+        let a_opus = a_lower.contains("opus");
+        let b_opus = b_lower.contains("opus");
+        if a_opus != b_opus {
+            return b_opus.cmp(&a_opus);
+        }
+
+        // Finally, sort alphabetically (reverse to get newer dates first)
+        b.cmp(a)
+    });
+}
+
+/// Selects the best default model based on available models
+fn select_default_model(models: &[String], anthropic_enabled: bool) -> String {
+    // If Anthropic is enabled, prefer newest Sonnet
+    if anthropic_enabled
+        && let Some(sonnet) = models.iter().find(|m| m.to_lowercase().contains("sonnet")) {
+            return sonnet.clone();
+        }
+
+    // Otherwise, prefer newest GPT base model
+    if let Some(gpt) = models.iter().find(|m| {
+        let m_lower = m.to_lowercase();
+        m_lower.starts_with("gpt") && !m.contains(':')
+    }) {
+        return gpt.clone();
+    }
+
+    // Fallback to first model in list
+    models.first().unwrap_or(&"default_model_name".to_string()).clone()
+}
+
 pub async fn get_all_model_names(
     anthropic_enabled: bool,
     openai_enabled: bool,
@@ -139,7 +227,7 @@ pub async fn get_all_model_names(
             .into_iter()
             .map(|m| m.id)
             .collect();
-        all_models.extend(openai_names);
+        all_models.extend(filter_models(openai_names));
     }
 
     if anthropic_enabled {
@@ -150,14 +238,20 @@ pub async fn get_all_model_names(
             .into_iter()
             .map(|m| m.id)
             .collect();
-        all_models.extend(anthropic_names);
+        all_models.extend(filter_models(anthropic_names));
     }
 
     if all_models.is_empty() {
         return Err("No models available".into());
     }
 
+    sort_models(&mut all_models);
+
     Ok(all_models)
+}
+
+pub fn get_default_model(all_models: &[String], anthropic_enabled: bool) -> String {
+    select_default_model(all_models, anthropic_enabled)
 }
 
 pub(crate) fn sequence_equals(slice1: &[String], slice2: &[String]) -> bool {
