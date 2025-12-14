@@ -9,6 +9,7 @@ pub mod document;
 pub mod edit_config;
 pub mod fork;
 pub mod gf;
+pub mod goto;
 pub mod handle_commands;
 pub mod help;
 pub mod image;
