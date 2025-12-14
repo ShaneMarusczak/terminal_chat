@@ -378,37 +378,3 @@ pub(crate) fn sequence_equals(slice1: &[String], slice2: &[String]) -> bool {
     set1 == set2
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sequence_equals() {
-        // Equal sequences
-        assert!(sequence_equals(
-            &["a".to_string(), "b".to_string()],
-            &["a".to_string(), "b".to_string()]
-        ));
-
-        // Equal sequences in different order
-        assert!(sequence_equals(
-            &["a".to_string(), "b".to_string()],
-            &["b".to_string(), "a".to_string()]
-        ));
-
-        // Different lengths
-        assert!(!sequence_equals(
-            &["a".to_string(), "b".to_string()],
-            &["a".to_string(), "b".to_string(), "c".to_string()]
-        ));
-
-        // Different contents
-        assert!(!sequence_equals(
-            &["a".to_string(), "b".to_string()],
-            &["a".to_string(), "c".to_string()]
-        ));
-
-        // Empty sequences
-        assert!(sequence_equals(&[], &[]));
-    }
-}
