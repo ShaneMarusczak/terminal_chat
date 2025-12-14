@@ -64,36 +64,20 @@ pub(crate) fn print_message_with_number(
     };
 
     let first_row = match message_type {
-        MessageType::User => {
-            let label = if let Some(num) = message_num {
-                format!("User [{}]", num)
-            } else {
-                "User".to_string()
-            };
-            let bar_len = effective_width.saturating_sub(label.len());
-            format!(
-                "{}{}{}{}",
-                UPPER_LEFT.with(color),
-                HORIZONTAL_BAR.repeat(bar_len).with(color),
-                label,
-                UPPER_RIGHT.with(color)
-            )
-        }
-        MessageType::Assistant => {
-            let label = if let Some(num) = message_num {
-                format!("Assistant [{}]", num)
-            } else {
-                "Assistant".to_string()
-            };
-            let bar_len = effective_width.saturating_sub(label.len());
-            format!(
-                "{}{}{}{}",
-                UPPER_LEFT.with(color),
-                label,
-                HORIZONTAL_BAR.repeat(bar_len).with(color),
-                UPPER_RIGHT.with(color)
-            )
-        }
+        MessageType::User => format!(
+            "{}{}{}{}",
+            UPPER_LEFT.with(color),
+            HORIZONTAL_BAR.repeat(effective_width - 4).with(color),
+            "User",
+            UPPER_RIGHT.with(color)
+        ),
+        MessageType::Assistant => format!(
+            "{}{}{}{}",
+            UPPER_LEFT.with(color),
+            "Assistant",
+            HORIZONTAL_BAR.repeat(effective_width - 9).with(color),
+            UPPER_RIGHT.with(color)
+        ),
         MessageType::System => format!(
             "{}{}{}",
             UPPER_LEFT.with(color),
@@ -101,6 +85,11 @@ pub(crate) fn print_message_with_number(
             UPPER_RIGHT.with(color)
         ),
     };
+
+    // Print message number if provided (for search/show commands)
+    if let Some(num) = message_num {
+        println!("[{}]", num);
+    }
 
     let vertical_bar_styled = VERTICAL_BAR.with(color);
     let body = word_wrap(
