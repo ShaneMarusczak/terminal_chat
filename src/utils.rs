@@ -185,6 +185,10 @@ fn filter_models(models: Vec<String>) -> Vec<String> {
                 || m_lower.contains("turbo")
                 || m_lower.contains("latest")
                 || m_lower.contains("search-api")
+                || m_lower.contains("deep-research")
+                || m_lower.contains("image")
+                || m_lower.contains("mini")
+                || m_lower.contains("pro")
             {
                 return false;
             }
