@@ -75,12 +75,14 @@ pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
             filename
         )) {
             if !Path::new("reports").exists() {
-                fs::create_dir("reports").map_err(|_| "Could not create reports directory")?;
+                fs::create_dir("reports")
+                    .map_err(|e| format!("Could not create reports directory: {}", e))?;
             }
 
-            let mut file = File::create(&filename).map_err(|_| "Could not create file")?;
+            let mut file = File::create(&filename)
+                .map_err(|e| format!("Could not create file '{}': {}", filename, e))?;
             file.write_all(file_contents.as_bytes())
-                .map_err(|_| "Could not write to file")?;
+                .map_err(|e| format!("Could not write to file '{}': {}", filename, e))?;
             println!("\nDocument saved as '{}'\n", filename);
         } else {
             println!("Document not saved.\n");

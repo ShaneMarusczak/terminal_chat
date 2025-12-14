@@ -1,7 +1,7 @@
 use crate::chat_client::{anthropic_chat, send_request};
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
-use crate::conversation::{AnthropicMessage, ConversationContext, Message, ResponseC};
+use crate::conversation::{AnthropicMessage, ConversationContext, Message, Provider, ResponseC};
 use crate::message_printer::{MessageType, print_message};
 use crate::preview_md::markdown_to_ansi;
 use crate::tc_config::{self, get_config};
@@ -91,7 +91,9 @@ async fn actually_chat(
         content: line.clone(),
     });
 
-    if ctx.model.contains("claude") {
+    let provider = Provider::from_model_name(&ctx.model);
+
+    if provider == Provider::Anthropic {
         let reply: AnthropicMessage = anthropic_chat(&ctx).await?;
 
         let message = reply.content.first().ok_or("No content")?.text.clone();
@@ -107,7 +109,7 @@ async fn actually_chat(
             content: message.clone(),
         });
     } else {
-        let response: ResponseC = send_request("chat", &*ctx).await?;
+        let response: ResponseC = send_request("chat", &ctx).await?;
         if let Some(choice) = response.choices.first() {
             let reply = choice.message.content.clone();
             ctx.input.push(Message {

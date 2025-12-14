@@ -84,11 +84,13 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
             "\nDo you want to save this document as '{}.md'? (y/n): ",
             sanitized_filename
         )) {
-            if !Path::new("readmes").exists() {
-                fs::create_dir("readmes")?;
-            }
-            let mut file = File::create(&final_name)?;
-            file.write_all(result_content.as_bytes())?;
+            fs::create_dir_all("readmes")
+                .map_err(|e| format!("Could not create readmes directory: {}", e))?;
+
+            let mut file = File::create(&final_name)
+                .map_err(|e| format!("Could not create file '{}': {}", final_name, e))?;
+            file.write_all(result_content.as_bytes())
+                .map_err(|e| format!("Could not write to file '{}': {}", final_name, e))?;
             println!("\nDocument saved to '{}'\n", &final_name);
         } else {
             println!("Document not saved.\n");

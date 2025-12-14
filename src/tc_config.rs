@@ -106,7 +106,7 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
 pub fn get_config() -> Result<ConfigTC, Box<dyn Error>> {
     match GLOBAL_CONFIG.read() {
         Ok(gc) => Ok(gc.clone()),
-        Err(_) => Err("💩".into()),
+        Err(_) => Err("💩".into()), // Emoji stays per user request!
     }
 }
 
@@ -115,7 +115,8 @@ pub fn write_config(config: &ConfigTC, prompt: bool) -> Result<(), Box<dyn Error
     if !prompt
         || confirm_action(&format!(
             "Save to {}?",
-            path.to_str().ok_or("To str failed")?
+            path.to_str()
+                .ok_or_else(|| format!("Failed to convert path to string: {:?}", path))?
         ))
     {
         if let Some(parent) = path.parent() {

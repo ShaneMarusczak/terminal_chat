@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::chat_client::send_request;
+use crate::chat_client::send_image_request;
 use crate::commands::command_context::CommandContext;
 use crate::utils::read_user_input;
 
@@ -23,7 +23,7 @@ pub async fn image_command(cc: Option<CommandContext>) -> CommandResult {
             model: model.into(),
             prompt,
         };
-        let response: ImageResponse = send_request("image", image_request).await?;
+        let response: ImageResponse = send_image_request(image_request).await?;
         println!();
 
         for (i, obj) in response.data.iter().enumerate() {

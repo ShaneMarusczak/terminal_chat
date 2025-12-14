@@ -86,10 +86,11 @@ pub fn extract_message_text(response: &Response) -> Option<String> {
 pub fn read_user_input(prompt: &str) -> Result<String, Box<dyn Error>> {
     let interface = Interface::new("tc")?;
     interface.set_prompt(prompt)?;
-    if let ReadResult::Input(line) = interface.read_line()? {
-        return Ok(line.trim().to_string());
+    match interface.read_line()? {
+        ReadResult::Input(line) => Ok(line.trim().to_string()),
+        ReadResult::Eof => Err("End of input (EOF) received".into()),
+        ReadResult::Signal(_) => Err("Input interrupted by signal".into()),
     }
-    unreachable!()
 }
 
 pub fn confirm_action(prompt: &str) -> bool {

@@ -1,5 +1,23 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Provider {
+    Anthropic,
+    OpenAI,
+}
+
+impl Provider {
+    /// Determines the provider based on the model name
+    pub fn from_model_name(model: &str) -> Self {
+        let model_lower = model.to_lowercase();
+        if model_lower.contains("claude") {
+            Provider::Anthropic
+        } else {
+            Provider::OpenAI
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     pub role: String,
@@ -10,6 +28,27 @@ pub struct Message {
 pub struct ConversationContext {
     pub model: String,
     pub input: Vec<Message>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct OpenAIRequest {
+    pub model: String,
+    #[serde(rename = "messages")]
+    pub messages: Vec<Message>,
+}
+
+impl OpenAIRequest {
+    pub fn from_context(ctx: &ConversationContext) -> Self {
+        Self {
+            model: ctx.model.clone(),
+            messages: ctx
+                .input
+                .iter()
+                .filter(|m| m.role != "developer")
+                .cloned()
+                .collect(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
