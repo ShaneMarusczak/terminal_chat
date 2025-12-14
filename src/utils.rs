@@ -164,6 +164,7 @@ fn filter_models(models: Vec<String>) -> Vec<String> {
                 || m_lower.starts_with("davinci")
                 || m_lower.starts_with("text-")
                 || m_lower.starts_with("code-")
+                || m_lower.starts_with("gpt-3")
                 || m_lower.contains("instruct")
             {
                 return false;
