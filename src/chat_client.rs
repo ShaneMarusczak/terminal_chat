@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    conversation::{AnthropicRequest, ConversationContext, OpenAIRequest},
+    conversation::{AnthropicRequest, ConversationContext, OpenAIRequest, ResponsesRequest},
     spinner::run_with_spinner,
 };
 
@@ -93,12 +93,15 @@ where
     let api_key = env::var("OPENAI_API_KEY")
         .map_err(|_| "OPENAI_API_KEY environment variable not set")?;
 
-    let openai_request = OpenAIRequest::from_context(context);
-    let request_json = serde_json::to_string(&openai_request)?;
-
-    let url = match url_flag {
-        "chat" => API_CHAT_URL,
-        _ => API_URL,
+    let (request_json, url) = match url_flag {
+        "chat" => {
+            let openai_request = OpenAIRequest::from_context(context);
+            (serde_json::to_string(&openai_request)?, API_CHAT_URL)
+        }
+        _ => {
+            let responses_request = ResponsesRequest::from_context(context);
+            (serde_json::to_string(&responses_request)?, API_URL)
+        }
     };
 
     let response_text = run_with_spinner(async {

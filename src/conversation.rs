@@ -53,6 +53,21 @@ impl OpenAIRequest {
     }
 }
 
+#[derive(Serialize, Debug)]
+pub struct ResponsesRequest {
+    pub model: String,
+    pub input: Vec<Message>,
+}
+
+impl ResponsesRequest {
+    pub fn from_context(ctx: &ConversationContext) -> Self {
+        Self {
+            model: ctx.model.clone(),
+            input: ctx.input.clone(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AnthropicRequest {
     pub system: String,
