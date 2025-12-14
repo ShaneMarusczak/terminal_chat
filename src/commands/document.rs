@@ -3,7 +3,8 @@ use crate::commands::command_context::CommandContext;
 use crate::conversation::{ConversationContext, Message};
 use crate::messages::MESSAGES;
 use crate::preview_md::preview_markdown;
-use crate::utils::{confirm_action, extract_message_text};
+use crate::tc_config::get_config;
+use crate::utils::{confirm_action, extract_message_text, select_model};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -12,8 +13,14 @@ use crate::commands::command_tc::CommandResult;
 
 pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
+        let config = get_config()?;
+        let selected_model = select_model(
+            &config.all_models,
+            "Select a model for document generation:",
+        )?;
+
         let ctx = cc.conversation_context.lock().await;
-        let mut new_context = ConversationContext::new("o3-mini");
+        let mut new_context = ConversationContext::new(&selected_model);
 
         let dev_message = Message {
             role: "developer".into(),
@@ -34,7 +41,11 @@ pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
         let report =
             extract_message_text(&response).ok_or("No content received in the document report")?;
 
-        let mut title_context = ConversationContext::new("gpt-4o");
+        let title_model = select_model(
+            &config.all_models,
+            "Select a model for title generation:",
+        )?;
+        let mut title_context = ConversationContext::new(&title_model);
         let title_prompt = Message {
             role: "developer".into(),
             content: format!(

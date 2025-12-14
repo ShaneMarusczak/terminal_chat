@@ -57,9 +57,13 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
 
     if !anthropic_enabled && !openai_enabled {
         eprintln!(
-            "\nNo API keys detected. You must have an Anthropic and/or an OpenAI key to use this app.\n"
+            "\nError: No API keys detected.\n\
+            You must set at least one of the following environment variables:\n\
+            - ANTHROPIC_API_KEY (for Claude models)\n\
+            - OPENAI_API_KEY (for GPT models)\n\n\
+            Exiting...\n"
         );
-        return Ok(ConfigTC::default(vec![]));
+        std::process::exit(1);
     }
 
     let all_models = crate::utils::get_all_model_names(anthropic_enabled, openai_enabled).await?;

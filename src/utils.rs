@@ -101,6 +101,24 @@ pub fn confirm_action(prompt: &str) -> bool {
     response.is_ok_and(|c| c.eq_ignore_ascii_case("y"))
 }
 
+pub fn select_model(all_models: &[String], prompt_message: &str) -> Result<String, Box<dyn Error>> {
+    println!("\n{}", prompt_message);
+    println!("Available models:");
+    for (i, model) in all_models.iter().enumerate() {
+        println!("{}) {}", i + 1, model);
+    }
+
+    loop {
+        let input = read_user_input("\nSelect a model by number: ")?;
+        if let Ok(num) = input.trim().parse::<usize>() {
+            if num > 0 && num <= all_models.len() {
+                return Ok(all_models[num - 1].clone());
+            }
+        }
+        eprintln!("Invalid selection. Please try again.");
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct OpenAIModel {
     id: String,

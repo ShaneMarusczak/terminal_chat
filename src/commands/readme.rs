@@ -4,7 +4,10 @@ use crate::commands::command_tc::CommandResult;
 use crate::conversation::{ConversationContext, Message};
 use crate::messages::MESSAGES;
 use crate::preview_md::preview_markdown;
-use crate::utils::{confirm_action, extract_message_text, read_user_input, walk_directory};
+use crate::tc_config::get_config;
+use crate::utils::{
+    confirm_action, extract_message_text, read_user_input, select_model, walk_directory,
+};
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::Write;
@@ -30,7 +33,13 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
             HashSet::new()
         };
 
-        let mut new_context = ConversationContext::new("o3-mini");
+        let config = get_config()?;
+        let selected_model = select_model(
+            &config.all_models,
+            "Select a model for README generation:",
+        )?;
+
+        let mut new_context = ConversationContext::new(&selected_model);
         let dev_message = Message {
             role: "developer".into(),
             content: MESSAGES.get("readme").unwrap_or(&"").to_string(),
