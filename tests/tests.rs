@@ -1,3 +1,5 @@
+#![allow(clippy::panic)]
+
 use tc::*;
 
 // ============================================================================
@@ -113,7 +115,10 @@ fn test_openai_request_serialization() {
     let ctx = create_test_context();
     let request = OpenAIRequest::from_context(&ctx);
 
-    let json = serde_json::to_string(&request).unwrap();
+    let json = match serde_json::to_string(&request) {
+        Ok(json) => json,
+        Err(e) => panic!("Failed to serialize OpenAIRequest: {}", e),
+    };
     // Should use "messages" key
     assert!(json.contains("\"messages\""));
     assert!(!json.contains("\"input\""));
@@ -124,7 +129,10 @@ fn test_responses_request_serialization() {
     let ctx = create_test_context();
     let request = ResponsesRequest::from_context(&ctx);
 
-    let json = serde_json::to_string(&request).unwrap();
+    let json = match serde_json::to_string(&request) {
+        Ok(json) => json,
+        Err(e) => panic!("Failed to serialize ResponsesRequest: {}", e),
+    };
     // Should use "input" key
     assert!(json.contains("\"input\""));
     assert!(!json.contains("\"messages\""));
