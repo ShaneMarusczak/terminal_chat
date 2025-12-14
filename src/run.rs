@@ -101,6 +101,7 @@ async fn actually_chat(
             role: "assistant".into(),
             content: message.clone(),
         });
+        ctx.last_response = Some(message);
     } else {
         let response: ResponseC = send_request("chat", &ctx).await?;
         if let Some(choice) = response.choices.first() {
@@ -112,6 +113,7 @@ async fn actually_chat(
 
             print_message(&reply, MessageType::Assistant, &config);
             println!();
+            ctx.last_response = Some(reply);
         }
     }
 

@@ -16,3 +16,4 @@ pub mod quit;
 pub mod readme;
 pub mod save_conversation;
 pub mod sh;
+pub mod yank;

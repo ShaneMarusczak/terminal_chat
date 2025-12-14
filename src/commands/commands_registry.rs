@@ -5,7 +5,7 @@ use crate::commands::{
     command_tc::CommandTC, debug::debug_command, document::document_command,
     edit_config::ec_command, gf::gf_command, help::help_command, image::image_command,
     load_conversation::lc_command, quit::quit_command, readme::readme_command,
-    save_conversation::sc_command, sh,
+    save_conversation::sc_command, sh, yank::yank_command,
 };
 
 macro_rules! register_command {
@@ -61,6 +61,12 @@ pub static TC_COMMANDS: LazyLock<HashMap<&str, CommandTC>> = LazyLock::new(|| {
         "sh",
         "Executes a program with arguments. Usage: sh <program> [args...]",
         sh::sh,
+        r
+    );
+    register_command!(
+        "y",
+        "Yanks (copies) the last AI response to clipboard.",
+        yank_command,
         r
     );
 
