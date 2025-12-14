@@ -20,17 +20,11 @@ pub(crate) struct ConfigTC {
     #[serde(default = "default_dev_message")]
     pub(crate) dev_message: String,
 
-    #[serde(default)]
-    pub(crate) preview_md: bool,
-
     #[serde(default = "default_anthropic")]
     pub(crate) anthropic_enabled: bool,
 
     #[serde(default = "default_openai")]
     pub(crate) openai_enabled: bool,
-
-    #[serde(default)]
-    pub(crate) message_boxes_enabled: bool,
 
     #[serde(default = "default_theme")]
     pub(crate) theme: Theme,
@@ -151,10 +145,8 @@ impl ConfigTC {
             model: default_model,
             all_models,
             dev_message: default_dev_message(),
-            preview_md: false,
             anthropic_enabled: default_anthropic(),
             openai_enabled: default_openai(),
-            message_boxes_enabled: false,
             theme: default_theme(),
         }
     }
@@ -175,17 +167,6 @@ pub fn config_interview(config: &mut ConfigTC) {
             }
         eprintln!("\nInvalid model selection. Please try again.");
     };
-
-    config.preview_md =
-        confirm_action("Display responses as rendered markdown? (y/n)");
-
-    config.message_boxes_enabled = confirm_action(
-        "Display chat messages in text boxes? (disables markdown) (y/n)",
-    );
-
-    if config.message_boxes_enabled {
-        config.preview_md = false;
-    }
 
     if confirm_action("Write a custom developer message for the AI? (y/n)") {
         config.dev_message =
@@ -243,10 +224,8 @@ fn read_valid_color(prompt: &str) -> String {
 
 pub(crate) fn print_config(config: &ConfigTC) {
     println!(
-        "\nConfiguration:\nModel: {}\nPreview Markdown: {}\nMessage Boxes: {}\nDeveloper Message:\n {}\nTheme Colors: System: {}, User: {}, Assistant: {}",
+        "\nConfiguration:\nModel: {}\nDeveloper Message:\n {}\nTheme Colors: System: {}, User: {}, Assistant: {}",
         config.model,
-        config.preview_md,
-        config.message_boxes_enabled,
         config.dev_message,
         config.theme.system_color,
         config.theme.user_color,

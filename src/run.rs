@@ -3,7 +3,6 @@ use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
 use crate::conversation::{AnthropicMessage, ConversationContext, Message, Provider, ResponseC};
 use crate::message_printer::{MessageType, print_message};
-use crate::preview_md::markdown_to_ansi;
 use crate::tc_config::{self, get_config};
 use crate::utils::calculate_message_width;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
@@ -71,20 +70,18 @@ async fn actually_chat(
     let mut ctx = context.lock().await;
     let config = get_config()?;
 
-    if config.message_boxes_enabled {
-        let (width, terminal_width) = calculate_message_width(&line, 70, 80);
+    let (width, terminal_width) = calculate_message_width(&line, 70, 80);
 
-        let width = width.min(terminal_width);
+    let width = width.min(terminal_width);
 
-        let line_len = line.chars().count();
-        let line_count = (line_len / width) + if line_len.is_multiple_of(width) { 0 } else { 1 };
+    let line_len = line.chars().count();
+    let line_count = (line_len / width) + if line_len.is_multiple_of(width) { 0 } else { 1 };
 
-        // Clear previous lines
-        for _ in 0..line_count {
-            print!("\x1B[1A\x1B[2K");
-        }
-        print_message(&line, MessageType::User, &config);
+    // Clear previous lines
+    for _ in 0..line_count {
+        print!("\x1B[1A\x1B[2K");
     }
+    print_message(&line, MessageType::User, &config);
 
     ctx.input.push(Message {
         role: "user".into(),
@@ -98,12 +95,8 @@ async fn actually_chat(
 
         let message = reply.content.first().ok_or("No content")?.text.clone();
 
-        if config.message_boxes_enabled {
-            print_message(&message, MessageType::Assistant, &config);
-            println!();
-        } else {
-            println!("🤖 {}\n", message);
-        }
+        print_message(&message, MessageType::Assistant, &config);
+        println!();
         ctx.input.push(Message {
             role: "assistant".into(),
             content: message.clone(),
@@ -117,18 +110,8 @@ async fn actually_chat(
                 content: reply.clone(),
             });
 
-            let s = if config.preview_md {
-                markdown_to_ansi(&reply)
-            } else {
-                reply
-            };
-
-            if config.message_boxes_enabled {
-                print_message(&s, MessageType::Assistant, &config);
-                println!();
-            } else {
-                println!("\n🤖 {}", s);
-            }
+            print_message(&reply, MessageType::Assistant, &config);
+            println!();
         }
     }
 
