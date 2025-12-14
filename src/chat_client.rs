@@ -21,6 +21,7 @@ const ANTHROPIC_MODELS: &str = "https://api.anthropic.com/v1/models";
 const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
 
 /// Shared HTTP client with connection pooling and configured timeouts
+#[allow(clippy::expect_used)]
 static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
         .timeout(Duration::from_secs(300)) // 5 minute timeout for long AI responses
