@@ -2,7 +2,7 @@ use crate::chat_client::{anthropic_chat, send_request};
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
 use crate::conversation::{AnthropicMessage, ConversationContext, Message, Provider, ResponseC};
-use crate::message_printer::{MessageType, print_message};
+use crate::message_printer::{MessageType, print_message, print_message_with_number};
 use crate::tc_config::{self, get_config};
 use crate::utils::calculate_message_width;
 use linefeed::{DefaultTerminal, Interface, ReadResult, complete::PathCompleter};
@@ -83,8 +83,7 @@ async fn actually_chat(
     }
 
     let user_msg_num = ctx.input.len();
-    println!("[{}]", user_msg_num);
-    print_message(&line, MessageType::User, &config);
+    print_message_with_number(&line, MessageType::User, &config, Some(user_msg_num));
 
     ctx.input.push(Message {
         role: "user".into(),
@@ -99,8 +98,7 @@ async fn actually_chat(
         let message = reply.content.first().ok_or("No content")?.text.clone();
 
         let ai_msg_num = ctx.input.len();
-        println!("[{}]", ai_msg_num);
-        print_message(&message, MessageType::Assistant, &config);
+        print_message_with_number(&message, MessageType::Assistant, &config, Some(ai_msg_num));
         println!();
         ctx.input.push(Message {
             role: "assistant".into(),
@@ -113,8 +111,7 @@ async fn actually_chat(
             let reply = choice.message.content.clone();
 
             let ai_msg_num = ctx.input.len();
-            println!("[{}]", ai_msg_num);
-            print_message(&reply, MessageType::Assistant, &config);
+            print_message_with_number(&reply, MessageType::Assistant, &config, Some(ai_msg_num));
             println!();
 
             ctx.input.push(Message {

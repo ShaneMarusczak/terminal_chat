@@ -20,6 +20,15 @@ const MAX_CHAT_WIDTH: usize = 70;
 const MESSAGE_WIDTH_PERCENT: usize = 80;
 
 pub(crate) fn print_message(message_text: &str, message_type: MessageType, config: &ConfigTC) {
+    print_message_with_number(message_text, message_type, config, None);
+}
+
+pub(crate) fn print_message_with_number(
+    message_text: &str,
+    message_type: MessageType,
+    config: &ConfigTC,
+    message_num: Option<usize>,
+) {
     let lines: Vec<&str> = message_text.lines().collect();
 
     let (calculated_width, terminal_width) =
@@ -55,20 +64,36 @@ pub(crate) fn print_message(message_text: &str, message_type: MessageType, confi
     };
 
     let first_row = match message_type {
-        MessageType::User => format!(
-            "{}{}{}{}",
-            UPPER_LEFT.with(color),
-            HORIZONTAL_BAR.repeat(effective_width - 4).with(color),
-            "User",
-            UPPER_RIGHT.with(color)
-        ),
-        MessageType::Assistant => format!(
-            "{}{}{}{}",
-            UPPER_LEFT.with(color),
-            "Assistant",
-            HORIZONTAL_BAR.repeat(effective_width - 9).with(color),
-            UPPER_RIGHT.with(color)
-        ),
+        MessageType::User => {
+            let label = if let Some(num) = message_num {
+                format!("User [{}]", num)
+            } else {
+                "User".to_string()
+            };
+            let bar_len = effective_width.saturating_sub(label.len());
+            format!(
+                "{}{}{}{}",
+                UPPER_LEFT.with(color),
+                HORIZONTAL_BAR.repeat(bar_len).with(color),
+                label,
+                UPPER_RIGHT.with(color)
+            )
+        }
+        MessageType::Assistant => {
+            let label = if let Some(num) = message_num {
+                format!("Assistant [{}]", num)
+            } else {
+                "Assistant".to_string()
+            };
+            let bar_len = effective_width.saturating_sub(label.len());
+            format!(
+                "{}{}{}{}",
+                UPPER_LEFT.with(color),
+                label,
+                HORIZONTAL_BAR.repeat(bar_len).with(color),
+                UPPER_RIGHT.with(color)
+            )
+        }
         MessageType::System => format!(
             "{}{}{}",
             UPPER_LEFT.with(color),
