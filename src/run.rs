@@ -81,6 +81,9 @@ async fn actually_chat(
     for _ in 0..line_count {
         print!("\x1B[1A\x1B[2K");
     }
+
+    let user_msg_num = ctx.input.len();
+    println!("[{}]", user_msg_num);
     print_message(&line, MessageType::User, &config);
 
     ctx.input.push(Message {
@@ -95,25 +98,30 @@ async fn actually_chat(
 
         let message = reply.content.first().ok_or("No content")?.text.clone();
 
+        let ai_msg_num = ctx.input.len();
+        println!("[{}]", ai_msg_num);
         print_message(&message, MessageType::Assistant, &config);
         println!();
         ctx.input.push(Message {
             role: "assistant".into(),
             content: message.clone(),
         });
-        ctx.last_response = Some(message);
+        ctx.yank_target = Some(message);
     } else {
         let response: ResponseC = send_request("chat", &ctx).await?;
         if let Some(choice) = response.choices.first() {
             let reply = choice.message.content.clone();
+
+            let ai_msg_num = ctx.input.len();
+            println!("[{}]", ai_msg_num);
+            print_message(&reply, MessageType::Assistant, &config);
+            println!();
+
             ctx.input.push(Message {
                 role: "assistant".into(),
                 content: reply.clone(),
             });
-
-            print_message(&reply, MessageType::Assistant, &config);
-            println!();
-            ctx.last_response = Some(reply);
+            ctx.yank_target = Some(reply);
         }
     }
 

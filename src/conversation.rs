@@ -29,7 +29,7 @@ pub struct ConversationContext {
     pub model: String,
     pub input: Vec<Message>,
     #[serde(skip)]
-    pub last_response: Option<String>,
+    pub yank_target: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -98,7 +98,7 @@ impl ConversationContext {
         Self {
             model: model.into(),
             input: Vec::new(),
-            last_response: None,
+            yank_target: None,
         }
     }
 }

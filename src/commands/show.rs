@@ -5,13 +5,13 @@ use crate::{
     tc_config::get_config,
 };
 
-pub async fn goto_command(cc: Option<CommandContext>) -> CommandResult {
+pub async fn show_command(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
         let mut ctx = cc.conversation_context.lock().await;
         let config = get_config()?;
 
         if cc.args.is_empty() {
-            print_message("Usage: :goto <message_number>", MessageType::System, &config);
+            print_message("Usage: :show <message_number>", MessageType::System, &config);
             return Ok(());
         }
 
@@ -49,8 +49,8 @@ pub async fn goto_command(cc: Option<CommandContext>) -> CommandResult {
 
         println!("\n========================================");
 
-        // Store in last_response so it can be yanked
-        ctx.last_response = Some(message.content.clone());
+        // Store in yank_target so it can be yanked
+        ctx.yank_target = Some(message.content.clone());
 
         print_message("Message loaded (use :y to copy)", MessageType::System, &config);
     }
