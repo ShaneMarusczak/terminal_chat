@@ -13,7 +13,7 @@ use crate::commands::command_tc::CommandResult;
 pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
     if let Some(cc) = cc {
         let ctx = cc.conversation_context.lock().await;
-        let mut new_context = ConversationContext::new("o3-mini", false);
+        let mut new_context = ConversationContext::new("o3-mini");
 
         let dev_message = Message {
             role: "developer".into(),
@@ -34,7 +34,7 @@ pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
         let report =
             extract_message_text(&response).ok_or("No content received in the document report")?;
 
-        let mut title_context = ConversationContext::new("gpt-4o", false);
+        let mut title_context = ConversationContext::new("gpt-4o");
         let title_prompt = Message {
             role: "developer".into(),
             content: format!(

@@ -1,8 +1,11 @@
 use linefeed::{Interface, ReadResult};
 
 use crate::{
-    chat_client::get_models, commands::change_model::ModelsResponse, conversation::Response,
+    chat_client::{get_anthropic_models, get_openai_models},
+    commands::change_model::ModelsResponse,
+    conversation::Response,
 };
+use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use std::{collections::HashSet, error::Error};
@@ -98,38 +101,49 @@ pub fn confirm_action(prompt: &str) -> bool {
     response.is_ok_and(|c| c.eq_ignore_ascii_case("y"))
 }
 
-const OPENAI_MODELS: &[&str] = &[
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4o-search-preview",
-    "o1",
-    "o3-mini",
-];
+#[derive(Debug, Deserialize)]
+struct OpenAIModel {
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIModelsResponse {
+    data: Vec<OpenAIModel>,
+}
 
 pub async fn get_all_model_names(
     anthropic_enabled: bool,
     openai_enabled: bool,
 ) -> Result<Vec<String>, Box<dyn Error>> {
-    let models_response: ModelsResponse = if anthropic_enabled {
-        serde_json::from_str(&get_models().await?)?
-    } else {
-        ModelsResponse { data: vec![] }
-    };
+    let mut all_models = Vec::new();
 
-    let names: Vec<String> = models_response.data.into_iter().map(|m| m.id).collect();
-    if openai_enabled && anthropic_enabled {
-        Ok(OPENAI_MODELS
-            .iter()
-            .map(|&model| model.to_string())
-            .chain(names)
-            .collect())
-    } else if openai_enabled {
-        Ok(OPENAI_MODELS.iter().map(|m| m.to_string()).collect())
-    } else if anthropic_enabled {
-        Ok(names)
-    } else {
-        unreachable!()
+    if openai_enabled {
+        let openai_response: OpenAIModelsResponse =
+            serde_json::from_str(&get_openai_models().await?)?;
+        let openai_names: Vec<String> = openai_response
+            .data
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        all_models.extend(openai_names);
     }
+
+    if anthropic_enabled {
+        let anthropic_response: ModelsResponse =
+            serde_json::from_str(&get_anthropic_models().await?)?;
+        let anthropic_names: Vec<String> = anthropic_response
+            .data
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        all_models.extend(anthropic_names);
+    }
+
+    if all_models.is_empty() {
+        return Err("No models available".into());
+    }
+
+    Ok(all_models)
 }
 
 pub(crate) fn sequence_equals(slice1: &[String], slice2: &[String]) -> bool {

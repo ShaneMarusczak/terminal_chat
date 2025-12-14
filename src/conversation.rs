@@ -10,7 +10,6 @@ pub struct Message {
 pub struct ConversationContext {
     pub model: String,
     pub input: Vec<Message>,
-    pub stream: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -54,16 +53,11 @@ impl AnthropicRequest {
 }
 
 impl ConversationContext {
-    pub fn new(model: &str, stream: bool) -> Self {
+    pub fn new(model: &str) -> Self {
         Self {
             model: model.into(),
             input: Vec::new(),
-            stream,
         }
-    }
-
-    pub fn set_stream(&mut self, s: bool) {
-        self.stream = s;
     }
 }
 
@@ -98,9 +92,4 @@ pub struct OutputContent {
     pub type_field: String,
     pub text: String,
     pub annotations: Vec<serde_json::Value>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DeltaData {
-    pub delta: String,
 }

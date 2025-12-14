@@ -1,4 +1,4 @@
-use crate::chat_client::{anthropic_chat, send_request, stream};
+use crate::chat_client::{anthropic_chat, send_request};
 use crate::commands::commands_registry::TC_COMMANDS;
 use crate::commands::handle_commands::handle_command;
 use crate::conversation::{AnthropicMessage, ConversationContext, Message, ResponseC};
@@ -19,10 +19,7 @@ pub(crate) async fn as_repl() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let context = Arc::new(Mutex::new(ConversationContext::new(
-        &config.model,
-        config.enable_streaming,
-    )));
+    let context = Arc::new(Mutex::new(ConversationContext::new(&config.model)));
 
     let dev_message = Arc::new(Message {
         role: "developer".into(),
@@ -73,7 +70,8 @@ async fn actually_chat(
 ) -> Result<(), Box<dyn Error>> {
     let mut ctx = context.lock().await;
     let config = get_config()?;
-    if !config.enable_streaming && config.message_boxes_enabled {
+
+    if config.message_boxes_enabled {
         let (width, terminal_width) = calculate_message_width(&line, 70, 80);
 
         let width = width.min(terminal_width);
@@ -94,8 +92,6 @@ async fn actually_chat(
     });
 
     if ctx.model.contains("claude") {
-        ctx.set_stream(false);
-
         let reply: AnthropicMessage = anthropic_chat(&ctx).await?;
 
         let message = reply.content.first().ok_or("No content")?.text.clone();
@@ -110,10 +106,7 @@ async fn actually_chat(
             role: "assistant".into(),
             content: message.clone(),
         });
-
-        ctx.set_stream(true);
-    } else if !config.enable_streaming || ctx.model.eq_ignore_ascii_case("gpt-4o-search-preview") {
-        ctx.set_stream(false);
+    } else {
         let response: ResponseC = send_request("chat", &*ctx).await?;
         if let Some(choice) = response.choices.first() {
             let reply = choice.message.content.clone();
@@ -135,9 +128,6 @@ async fn actually_chat(
                 println!("\n🤖 {}", s);
             }
         }
-        ctx.set_stream(true);
-    } else {
-        stream(&mut ctx).await?;
     }
 
     Ok(())

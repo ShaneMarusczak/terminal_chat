@@ -12,9 +12,6 @@ use std::sync::RwLock;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct ConfigTC {
     #[serde(default)]
-    pub(crate) enable_streaming: bool,
-
-    #[serde(default)]
     pub(crate) model: String,
 
     #[serde(default)]
@@ -146,7 +143,6 @@ impl ConfigTC {
             .unwrap_or(&"default_model_name".to_string())
             .to_owned();
         Self {
-            enable_streaming: false,
             model: default_model,
             all_models,
             dev_message: default_dev_message(),
@@ -176,17 +172,14 @@ pub fn config_interview(config: &mut ConfigTC) {
         eprintln!("\nInvalid model selection. Please try again.");
     };
 
-    config.enable_streaming = confirm_action("Enable streaming for eligible models? (y/n)");
-
     config.preview_md =
-        confirm_action("Display non-streamed responses as rendered markdown? (y/n)");
+        confirm_action("Display responses as rendered markdown? (y/n)");
 
     config.message_boxes_enabled = confirm_action(
-        "Display chat messages in text boxes? (disables streaming and markdown) (y/n)",
+        "Display chat messages in text boxes? (disables markdown) (y/n)",
     );
 
     if config.message_boxes_enabled {
-        config.enable_streaming = false;
         config.preview_md = false;
     }
 
@@ -246,9 +239,8 @@ fn read_valid_color(prompt: &str) -> String {
 
 pub(crate) fn print_config(config: &ConfigTC) {
     println!(
-        "\nConfiguration:\nModel: {}\nEnable Streaming: {}\nPreview Markdown: {}\nMessage Boxes: {}\nDeveloper Message:\n {}\nTheme Colors: System: {}, User: {}, Assistant: {}",
+        "\nConfiguration:\nModel: {}\nPreview Markdown: {}\nMessage Boxes: {}\nDeveloper Message:\n {}\nTheme Colors: System: {}, User: {}, Assistant: {}",
         config.model,
-        config.enable_streaming,
         config.preview_md,
         config.message_boxes_enabled,
         config.dev_message,

@@ -7,18 +7,18 @@ use std::{
 };
 
 use crate::{
-    conversation::{AnthropicRequest, ConversationContext, DeltaData, Message},
+    conversation::{AnthropicRequest, ConversationContext},
     spinner::run_with_spinner,
 };
-use futures_util::StreamExt;
 
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const API_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 const API_IMG_URL: &str = "https://api.openai.com/v1/images/generations";
+const OPENAI_MODELS_URL: &str = "https://api.openai.com/v1/models";
 const ANTHROPIC_MODELS: &str = "https://api.anthropic.com/v1/models";
 const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
 
-pub async fn get_models() -> Result<String, Box<dyn Error>> {
+pub async fn get_anthropic_models() -> Result<String, Box<dyn Error>> {
     let client = Client::new();
     let response = client
         .get(ANTHROPIC_MODELS)
@@ -31,48 +31,17 @@ pub async fn get_models() -> Result<String, Box<dyn Error>> {
     Ok(response)
 }
 
-pub async fn stream(context: &mut ConversationContext) -> Result<(), Box<dyn Error>> {
+pub async fn get_openai_models() -> Result<String, Box<dyn Error>> {
     let client = Client::new();
     let api_key = env::var("OPENAI_API_KEY")?;
-
-    println!();
-    print!("🤖 ");
-    stdout().flush().ok();
-
-    let request_json = serde_json::to_string(context)?;
     let response = client
-        .post(API_URL)
+        .get(OPENAI_MODELS_URL)
         .bearer_auth(&api_key)
-        .header("Content-Type", "application/json")
-        .body(request_json)
         .send()
+        .await?
+        .text()
         .await?;
-
-    let mut stream = response.bytes_stream();
-    let mut acc = String::new();
-
-    while let Some(next) = stream.next().await {
-        let next = next?;
-        let s = std::str::from_utf8(&next)?;
-
-        // println!("\n\ns:{s}\n\n");
-
-        for p in s.split("data: ") {
-            if let Some(real) = p.split("event:").next() {
-                if let Ok(d) = serde_json::from_str::<DeltaData>(real.trim()) {
-                    print!("{}", d.delta);
-                    acc.push_str(&d.delta);
-                    stdout().flush().ok();
-                }
-            }
-        }
-    }
-    context.input.push(Message {
-        role: "assistant".into(),
-        content: acc,
-    });
-    println!("\n");
-    Ok(())
+    Ok(response)
 }
 
 pub async fn anthropic_chat<T>(context: &ConversationContext) -> Result<T, Box<dyn Error>>

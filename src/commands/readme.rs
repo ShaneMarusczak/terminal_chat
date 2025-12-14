@@ -30,7 +30,7 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
             HashSet::new()
         };
 
-        let mut new_context = ConversationContext::new("o3-mini", false);
+        let mut new_context = ConversationContext::new("o3-mini");
         let dev_message = Message {
             role: "developer".into(),
             content: MESSAGES.get("readme").unwrap_or(&"").to_string(),
