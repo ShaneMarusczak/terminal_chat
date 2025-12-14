@@ -9,8 +9,29 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: clippy
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
   create_release:
     name: Create Release
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.create_release.outputs.id }}
@@ -31,7 +52,7 @@ jobs:
 
   build_release:
     name: Build & Upload Artifacts
-    needs: create_release
+    needs: [test, create_release]
     strategy:
       matrix:
         include:

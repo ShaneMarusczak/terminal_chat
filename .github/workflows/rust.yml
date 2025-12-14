@@ -3,12 +3,15 @@ name: Rust CI
 on:
   push:
     branches:
-      - 'feature/**'  
+      - 'feature/**'
+      - 'claude/**'
   pull_request:
     branches:
       - main
+
 jobs:
-  build:
+  test:
+    name: Test
 
     strategy:
       matrix:
@@ -18,12 +21,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
     - name: Set up Rust
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         override: true
-    - name: Build
-      run: cargo build --release
+        components: clippy
+
+    - name: Check formatting
+      run: cargo fmt --check
+      if: matrix.os == 'ubuntu-latest'
+
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+      if: matrix.os == 'ubuntu-latest'
+
     - name: Run tests
-      run: cargo test --release
+      run: cargo test --verbose
+
+    - name: Build release
+      run: cargo build --release
