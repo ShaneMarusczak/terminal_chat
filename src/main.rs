@@ -1,15 +1,10 @@
 use std::error::Error;
 
-mod chat_client;
-mod commands;
-mod conversation;
-mod message_printer;
-mod messages;
-mod preview_md;
+// Import from the library
+use tc::*;
+
+// Only declare the run module which is binary-specific
 mod run;
-mod spinner;
-mod tc_config;
-mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

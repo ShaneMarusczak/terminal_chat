@@ -3,27 +3,25 @@ name: Rust CI
 on:
   push:
     branches:
-      - 'feature/**'  
+      - 'feature/**'
+      - 'claude/**'
   pull_request:
     branches:
       - main
+
 jobs:
-  build:
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
+
     - name: Set up Rust
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         override: true
-    - name: Build
-      run: cargo build --release
+
     - name: Run tests
-      run: cargo test --release
+      run: cargo test

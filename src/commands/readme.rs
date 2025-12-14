@@ -4,7 +4,10 @@ use crate::commands::command_tc::CommandResult;
 use crate::conversation::{ConversationContext, Message};
 use crate::messages::MESSAGES;
 use crate::preview_md::preview_markdown;
-use crate::utils::{confirm_action, extract_message_text, read_user_input, walk_directory};
+use crate::tc_config::get_config;
+use crate::utils::{
+    confirm_action, extract_message_text, read_user_input, select_model, walk_directory,
+};
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::Write;
@@ -30,7 +33,13 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
             HashSet::new()
         };
 
-        let mut new_context = ConversationContext::new("o3-mini", false);
+        let config = get_config()?;
+        let selected_model = select_model(
+            &config.all_models,
+            "Select a model for README generation:",
+        )?;
+
+        let mut new_context = ConversationContext::new(&selected_model);
         let dev_message = Message {
             role: "developer".into(),
             content: MESSAGES.get("readme").unwrap_or(&"").to_string(),
@@ -75,11 +84,13 @@ pub async fn readme_command(cc: Option<CommandContext>) -> CommandResult {
             "\nDo you want to save this document as '{}.md'? (y/n): ",
             sanitized_filename
         )) {
-            if !Path::new("readmes").exists() {
-                fs::create_dir("readmes")?;
-            }
-            let mut file = File::create(&final_name)?;
-            file.write_all(result_content.as_bytes())?;
+            fs::create_dir_all("readmes")
+                .map_err(|e| format!("Could not create readmes directory: {}", e))?;
+
+            let mut file = File::create(&final_name)
+                .map_err(|e| format!("Could not create file '{}': {}", final_name, e))?;
+            file.write_all(result_content.as_bytes())
+                .map_err(|e| format!("Could not write to file '{}': {}", final_name, e))?;
             println!("\nDocument saved to '{}'\n", &final_name);
         } else {
             println!("Document not saved.\n");

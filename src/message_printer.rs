@@ -10,7 +10,7 @@ const BOTTOM_RIGHT: &str = "┘";
 const HORIZONTAL_BAR: &str = "─";
 const VERTICAL_BAR: &str = "│";
 
-pub(crate) enum MessageType {
+pub enum MessageType {
     User,
     Assistant,
     System,
@@ -19,7 +19,16 @@ pub(crate) enum MessageType {
 const MAX_CHAT_WIDTH: usize = 70;
 const MESSAGE_WIDTH_PERCENT: usize = 80;
 
-pub(crate) fn print_message(message_text: &str, message_type: MessageType, config: &ConfigTC) {
+pub fn print_message(message_text: &str, message_type: MessageType, config: &ConfigTC) {
+    print_message_with_number(message_text, message_type, config, None);
+}
+
+pub fn print_message_with_number(
+    message_text: &str,
+    message_type: MessageType,
+    config: &ConfigTC,
+    message_num: Option<usize>,
+) {
     let lines: Vec<&str> = message_text.lines().collect();
 
     let (calculated_width, terminal_width) =
@@ -77,6 +86,11 @@ pub(crate) fn print_message(message_text: &str, message_type: MessageType, confi
         ),
     };
 
+    // Print message number if provided (for search/show commands)
+    if let Some(num) = message_num {
+        println!("[{}]", num);
+    }
+
     let vertical_bar_styled = VERTICAL_BAR.with(color);
     let body = word_wrap(
         message_text,
@@ -128,14 +142,13 @@ fn word_wrap(text: &str, width: usize, wrapper: String) -> String {
             }
 
             // Try to backtrack to the last space if we're mid-word
-            if end_pos < graphemes.len() && !graphemes[end_pos].trim().is_empty() {
-                if let Some(last_space) = graphemes[current_pos..end_pos]
+            if end_pos < graphemes.len() && !graphemes[end_pos].trim().is_empty()
+                && let Some(last_space) = graphemes[current_pos..end_pos]
                     .iter()
                     .rposition(|g| g.trim().is_empty())
                 {
                     end_pos = current_pos + last_space + 1;
                 }
-            }
 
             let line_content = graphemes[current_pos..end_pos].join("");
             let final_width: usize = line_content.graphemes(true).map(|g| g.width()).sum();

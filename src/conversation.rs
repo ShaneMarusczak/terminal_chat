@@ -1,5 +1,23 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Provider {
+    Anthropic,
+    OpenAI,
+}
+
+impl Provider {
+    /// Determines the provider based on the model name
+    pub fn from_model_name(model: &str) -> Self {
+        let model_lower = model.to_lowercase();
+        if model_lower.contains("claude") {
+            Provider::Anthropic
+        } else {
+            Provider::OpenAI
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     pub role: String,
@@ -10,7 +28,44 @@ pub struct Message {
 pub struct ConversationContext {
     pub model: String,
     pub input: Vec<Message>,
-    pub stream: bool,
+    #[serde(skip)]
+    pub yank_target: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct OpenAIRequest {
+    pub model: String,
+    #[serde(rename = "messages")]
+    pub messages: Vec<Message>,
+}
+
+impl OpenAIRequest {
+    pub fn from_context(ctx: &ConversationContext) -> Self {
+        Self {
+            model: ctx.model.clone(),
+            messages: ctx
+                .input
+                .iter()
+                .filter(|m| m.role != "developer")
+                .cloned()
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct ResponsesRequest {
+    pub model: String,
+    pub input: Vec<Message>,
+}
+
+impl ResponsesRequest {
+    pub fn from_context(ctx: &ConversationContext) -> Self {
+        Self {
+            model: ctx.model.clone(),
+            input: ctx.input.clone(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -54,16 +109,12 @@ impl AnthropicRequest {
 }
 
 impl ConversationContext {
-    pub fn new(model: &str, stream: bool) -> Self {
+    pub fn new(model: &str) -> Self {
         Self {
             model: model.into(),
             input: Vec::new(),
-            stream,
+            yank_target: None,
         }
-    }
-
-    pub fn set_stream(&mut self, s: bool) {
-        self.stream = s;
     }
 }
 
@@ -98,9 +149,4 @@ pub struct OutputContent {
     pub type_field: String,
     pub text: String,
     pub annotations: Vec<serde_json::Value>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DeltaData {
-    pub delta: String,
 }

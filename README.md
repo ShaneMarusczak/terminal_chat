@@ -69,17 +69,16 @@ Terminal Chat (tc) is a Rust-based command-line chat assistant that integrates w
 
 ## Configuration Details
 
-TC Terminal Chat uses a JSON configuration file that is stored in your system’s configuration directory (or in the current directory as a fallback). Key configuration settings include:
+TC Terminal Chat uses a JSON configuration file that is stored in your system's configuration directory (or in the current directory as a fallback). Key configuration settings include:
 
-- **enable_streaming:** Toggle streaming responses.
 - **model:** The current chat model in use (e.g., "gpt-4o", "o3-mini").
 - **all_models:** List of available models combining Anthropic and OpenAI models.
 - **dev_message:** A custom developer instruction that influences chat behavior.
-- **preview_md:** Whether to display responses rendered in ANSI-styled Markdown.
 - **anthropic_enabled/openai_enabled:** Automatically enabled based on whether the API keys are set.
-- **message_boxes_enabled:** Option to display messages in framed boxes, which disables streaming and markdown preview.
 - **theme:** Allows configuration of message colors (system, user, assistant).
   Default colors are: system (yellow), user (green), assistant (blue).
+
+All chat messages are displayed in styled message boxes for a consistent experience.
 
 You can update the configuration interactively with the `:ec` command in the REPL.
 

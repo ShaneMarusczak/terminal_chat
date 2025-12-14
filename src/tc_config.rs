@@ -1,6 +1,6 @@
 use crate::{
     messages::MESSAGES,
-    utils::{confirm_action, read_user_input, sequence_equals},
+    utils::{confirm_action, get_default_model, read_user_input, sequence_equals},
 };
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
@@ -10,33 +10,24 @@ use crossterm::style::{Color, Stylize};
 use std::sync::RwLock;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub(crate) struct ConfigTC {
+pub struct ConfigTC {
     #[serde(default)]
-    pub(crate) enable_streaming: bool,
+    pub model: String,
 
     #[serde(default)]
-    pub(crate) model: String,
-
-    #[serde(default)]
-    pub(crate) all_models: Vec<String>,
+    pub all_models: Vec<String>,
 
     #[serde(default = "default_dev_message")]
-    pub(crate) dev_message: String,
-
-    #[serde(default)]
-    pub(crate) preview_md: bool,
+    pub dev_message: String,
 
     #[serde(default = "default_anthropic")]
-    pub(crate) anthropic_enabled: bool,
+    pub anthropic_enabled: bool,
 
     #[serde(default = "default_openai")]
-    pub(crate) openai_enabled: bool,
-
-    #[serde(default)]
-    pub(crate) message_boxes_enabled: bool,
+    pub openai_enabled: bool,
 
     #[serde(default = "default_theme")]
-    pub(crate) theme: Theme,
+    pub theme: Theme,
 }
 
 pub(crate) static GLOBAL_CONFIG: LazyLock<RwLock<ConfigTC>> =
@@ -60,9 +51,13 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
 
     if !anthropic_enabled && !openai_enabled {
         eprintln!(
-            "\nNo API keys detected. You must have an Anthropic and/or an OpenAI key to use this app.\n"
+            "\nError: No API keys detected.\n\
+            You must set at least one of the following environment variables:\n\
+            - ANTHROPIC_API_KEY (for Claude models)\n\
+            - OPENAI_API_KEY (for GPT models)\n\n\
+            Exiting...\n"
         );
-        return Ok(ConfigTC::default(vec![]));
+        std::process::exit(1);
     }
 
     let all_models = crate::utils::get_all_model_names(anthropic_enabled, openai_enabled).await?;
@@ -76,9 +71,9 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
                     write_config(&config, false)?;
                 }
                 if !all_models.contains(&config.model) {
-                    let first = all_models.first().ok_or("No models found")?;
-                    eprintln!("\nInvalid model found in config. Using: {}", first);
-                    config.model = first.to_owned();
+                    let default = get_default_model(&all_models, anthropic_enabled);
+                    eprintln!("\nInvalid model found in config. Using: {}", default);
+                    config.model = default;
                 }
                 config
             }
@@ -105,7 +100,7 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
 pub fn get_config() -> Result<ConfigTC, Box<dyn Error>> {
     match GLOBAL_CONFIG.read() {
         Ok(gc) => Ok(gc.clone()),
-        Err(_) => Err("💩".into()),
+        Err(_) => Err("💩".into()), // Emoji stays per user request!
     }
 }
 
@@ -114,7 +109,8 @@ pub fn write_config(config: &ConfigTC, prompt: bool) -> Result<(), Box<dyn Error
     if !prompt
         || confirm_action(&format!(
             "Save to {}?",
-            path.to_str().ok_or("To str failed")?
+            path.to_str()
+                .ok_or_else(|| format!("Failed to convert path to string: {:?}", path))?
         ))
     {
         if let Some(parent) = path.parent() {
@@ -141,54 +137,53 @@ pub(crate) fn get_config_path() -> PathBuf {
 
 impl ConfigTC {
     pub fn default(all_models: Vec<String>) -> Self {
-        let default_model = all_models
-            .first()
-            .unwrap_or(&"default_model_name".to_string())
-            .to_owned();
+        let anthropic_enabled = default_anthropic();
+        let default_model = get_default_model(&all_models, anthropic_enabled);
         Self {
-            enable_streaming: false,
             model: default_model,
             all_models,
             dev_message: default_dev_message(),
-            preview_md: false,
-            anthropic_enabled: default_anthropic(),
+            anthropic_enabled,
             openai_enabled: default_openai(),
-            message_boxes_enabled: false,
             theme: default_theme(),
         }
     }
 }
 
 pub fn config_interview(config: &mut ConfigTC) {
-    println!("\nAvailable models:");
-    for (i, model) in config.all_models.iter().enumerate() {
-        println!("{}) {}", i + 1, model);
+    let mut current_provider: Option<&str> = None;
+    let mut display_number = 1;
+
+    for model in &config.all_models {
+        // Determine provider
+        let provider = if model.to_lowercase().contains("claude") {
+            "Anthropic"
+        } else {
+            "OpenAI"
+        };
+
+        // Print provider header if changed
+        if current_provider != Some(provider) {
+            if current_provider.is_some() {
+                println!(); // Add spacing between providers
+            }
+            println!("{} Models:", provider);
+            current_provider = Some(provider);
+        }
+
+        println!("{}) {}", display_number, model);
+        display_number += 1;
     }
 
     config.model = loop {
         let input =
-            read_user_input("Please select a model by typing its number:").unwrap_or_default();
-        if let Ok(num) = input.trim().parse::<usize>() {
-            if num > 0 && num <= config.all_models.len() {
+            read_user_input("\nPlease select a model by typing its number:").unwrap_or_default();
+        if let Ok(num) = input.trim().parse::<usize>()
+            && num > 0 && num <= config.all_models.len() {
                 break config.all_models[num - 1].clone();
             }
-        }
         eprintln!("\nInvalid model selection. Please try again.");
     };
-
-    config.enable_streaming = confirm_action("Enable streaming for eligible models? (y/n)");
-
-    config.preview_md =
-        confirm_action("Display non-streamed responses as rendered markdown? (y/n)");
-
-    config.message_boxes_enabled = confirm_action(
-        "Display chat messages in text boxes? (disables streaming and markdown) (y/n)",
-    );
-
-    if config.message_boxes_enabled {
-        config.enable_streaming = false;
-        config.preview_md = false;
-    }
 
     if confirm_action("Write a custom developer message for the AI? (y/n)") {
         config.dev_message =
@@ -246,11 +241,8 @@ fn read_valid_color(prompt: &str) -> String {
 
 pub(crate) fn print_config(config: &ConfigTC) {
     println!(
-        "\nConfiguration:\nModel: {}\nEnable Streaming: {}\nPreview Markdown: {}\nMessage Boxes: {}\nDeveloper Message:\n {}\nTheme Colors: System: {}, User: {}, Assistant: {}",
+        "\nConfiguration:\nModel: {}\nDeveloper Message:\n {}\nTheme Colors: System: {}, User: {}, Assistant: {}",
         config.model,
-        config.enable_streaming,
-        config.preview_md,
-        config.message_boxes_enabled,
         config.dev_message,
         config.theme.system_color,
         config.theme.user_color,
@@ -259,15 +251,15 @@ pub(crate) fn print_config(config: &ConfigTC) {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub(crate) struct Theme {
+pub struct Theme {
     #[serde(default = "default_system_color")]
-    pub(crate) system_color: String,
+    pub system_color: String,
 
     #[serde(default = "default_user_color")]
-    pub(crate) user_color: String,
+    pub user_color: String,
 
     #[serde(default = "default_assistant_color")]
-    pub(crate) assistant_color: String,
+    pub assistant_color: String,
 }
 
 fn default_system_color() -> String {
