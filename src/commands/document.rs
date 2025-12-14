@@ -41,11 +41,8 @@ pub async fn document_command(cc: Option<CommandContext>) -> CommandResult {
         let report =
             extract_message_text(&response).ok_or("No content received in the document report")?;
 
-        let title_model = select_model(
-            &config.all_models,
-            "Select a model for title generation:",
-        )?;
-        let mut title_context = ConversationContext::new(&title_model);
+        // Reuse the same model for title generation
+        let mut title_context = ConversationContext::new(&selected_model);
         let title_prompt = Message {
             role: "developer".into(),
             content: format!(
