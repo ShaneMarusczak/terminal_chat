@@ -10,24 +10,24 @@ use crossterm::style::{Color, Stylize};
 use std::sync::RwLock;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub(crate) struct ConfigTC {
+pub struct ConfigTC {
     #[serde(default)]
-    pub(crate) model: String,
+    pub model: String,
 
     #[serde(default)]
-    pub(crate) all_models: Vec<String>,
+    pub all_models: Vec<String>,
 
     #[serde(default = "default_dev_message")]
-    pub(crate) dev_message: String,
+    pub dev_message: String,
 
     #[serde(default = "default_anthropic")]
-    pub(crate) anthropic_enabled: bool,
+    pub anthropic_enabled: bool,
 
     #[serde(default = "default_openai")]
-    pub(crate) openai_enabled: bool,
+    pub openai_enabled: bool,
 
     #[serde(default = "default_theme")]
-    pub(crate) theme: Theme,
+    pub theme: Theme,
 }
 
 pub(crate) static GLOBAL_CONFIG: LazyLock<RwLock<ConfigTC>> =
@@ -251,15 +251,15 @@ pub(crate) fn print_config(config: &ConfigTC) {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub(crate) struct Theme {
+pub struct Theme {
     #[serde(default = "default_system_color")]
-    pub(crate) system_color: String,
+    pub system_color: String,
 
     #[serde(default = "default_user_color")]
-    pub(crate) user_color: String,
+    pub user_color: String,
 
     #[serde(default = "default_assistant_color")]
-    pub(crate) assistant_color: String,
+    pub assistant_color: String,
 }
 
 fn default_system_color() -> String {

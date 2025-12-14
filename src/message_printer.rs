@@ -10,7 +10,7 @@ const BOTTOM_RIGHT: &str = "┘";
 const HORIZONTAL_BAR: &str = "─";
 const VERTICAL_BAR: &str = "│";
 
-pub(crate) enum MessageType {
+pub enum MessageType {
     User,
     Assistant,
     System,
@@ -19,11 +19,11 @@ pub(crate) enum MessageType {
 const MAX_CHAT_WIDTH: usize = 70;
 const MESSAGE_WIDTH_PERCENT: usize = 80;
 
-pub(crate) fn print_message(message_text: &str, message_type: MessageType, config: &ConfigTC) {
+pub fn print_message(message_text: &str, message_type: MessageType, config: &ConfigTC) {
     print_message_with_number(message_text, message_type, config, None);
 }
 
-pub(crate) fn print_message_with_number(
+pub fn print_message_with_number(
     message_text: &str,
     message_type: MessageType,
     config: &ConfigTC,
