@@ -179,6 +179,9 @@ fn filter_models(models: Vec<String>) -> Vec<String> {
                 || m_lower.contains("realtime")
                 || m_lower.contains("codex")
                 || m_lower.contains("dall")
+                || m_lower.contains("preview")
+                || m_lower.contains("nano")
+                || m_lower.contains("turbo")
             {
                 return false;
             }
