@@ -100,9 +100,29 @@ pub fn confirm_action(prompt: &str) -> bool {
 
 pub fn select_model(all_models: &[String], prompt_message: &str) -> Result<String, Box<dyn Error>> {
     println!("\n{}", prompt_message);
-    println!("Available models:");
-    for (i, model) in all_models.iter().enumerate() {
-        println!("{}) {}", i + 1, model);
+
+    let mut current_provider: Option<&str> = None;
+    let mut display_number = 1;
+
+    for model in all_models {
+        // Determine provider
+        let provider = if model.to_lowercase().contains("claude") {
+            "Anthropic"
+        } else {
+            "OpenAI"
+        };
+
+        // Print provider header if changed
+        if current_provider != Some(provider) {
+            if current_provider.is_some() {
+                println!(); // Add spacing between providers
+            }
+            println!("{} Models:", provider);
+            current_provider = Some(provider);
+        }
+
+        println!("{}) {}", display_number, model);
+        display_number += 1;
     }
 
     loop {
@@ -149,6 +169,20 @@ fn filter_models(models: Vec<String>) -> Vec<String> {
                 return false;
             }
 
+            // Exclude specialized models not for general chat
+            if m_lower.contains("transcribe")
+                || m_lower.contains("audio")
+                || m_lower.contains("whisper")
+                || m_lower.contains("tts")
+                || m_lower.contains("sora")
+                || m_lower.contains("omni")
+                || m_lower.contains("realtime")
+                || m_lower.contains("codex")
+                || m_lower.contains("dall")
+            {
+                return false;
+            }
+
             true
         })
         .collect()
@@ -174,16 +208,41 @@ fn get_base_model_name(model: &str) -> &str {
     model
 }
 
-/// Deduplicates models, keeping only the newest version of each base model
-fn deduplicate_models(models: Vec<String>) -> Vec<String> {
-    let mut seen_bases = HashSet::new();
-    let mut result = Vec::new();
+/// Checks if a model has a date suffix
+fn has_date_suffix(model: &str) -> bool {
+    let parts: Vec<&str> = model.rsplitn(2, '-').collect();
+    if parts.len() == 2 {
+        let potential_date = parts[0];
+        return potential_date.starts_with("20")
+            && potential_date.len() >= 8
+            && potential_date.chars().all(|c| c.is_ascii_digit() || c == '-');
+    }
+    false
+}
 
-    // Models are already sorted with newest first, so first occurrence is the newest
+/// Deduplicates models, preferring dateless versions over dated ones
+fn deduplicate_models(models: Vec<String>) -> Vec<String> {
+    use std::collections::HashMap;
+
+    let mut base_to_models: HashMap<String, Vec<String>> = HashMap::new();
+
+    // Group models by base name
     for model in models {
-        let base = get_base_model_name(&model);
-        if seen_bases.insert(base.to_string()) {
-            result.push(model);
+        let base = get_base_model_name(&model).to_string();
+        base_to_models.entry(base).or_default().push(model);
+    }
+
+    // For each base, prefer dateless version, otherwise newest dated version
+    let mut result = Vec::new();
+    for (_base, versions) in base_to_models {
+        // Find dateless version
+        if let Some(dateless) = versions.iter().find(|m| !has_date_suffix(m)) {
+            result.push(dateless.clone());
+        } else {
+            // All have dates, use the first one (newest due to sorting)
+            if let Some(newest) = versions.first() {
+                result.push(newest.clone());
+            }
         }
     }
 
@@ -253,36 +312,43 @@ pub async fn get_all_model_names(
     anthropic_enabled: bool,
     openai_enabled: bool,
 ) -> Result<Vec<String>, Box<dyn Error>> {
-    let mut all_models = Vec::new();
-
-    if openai_enabled {
-        let openai_response: OpenAIModelsResponse =
-            serde_json::from_str(&get_openai_models().await?)?;
-        let openai_names: Vec<String> = openai_response
-            .data
-            .into_iter()
-            .map(|m| m.id)
-            .collect();
-        all_models.extend(filter_models(openai_names));
-    }
+    let mut anthropic_models = Vec::new();
+    let mut openai_models = Vec::new();
 
     if anthropic_enabled {
         let anthropic_response: ModelsResponse =
             serde_json::from_str(&get_anthropic_models().await?)?;
-        let anthropic_names: Vec<String> = anthropic_response
+        let mut models: Vec<String> = anthropic_response
             .data
             .into_iter()
             .map(|m| m.id)
             .collect();
-        all_models.extend(filter_models(anthropic_names));
+        models = filter_models(models);
+        sort_models(&mut models);
+        anthropic_models = deduplicate_models(models);
     }
+
+    if openai_enabled {
+        let openai_response: OpenAIModelsResponse =
+            serde_json::from_str(&get_openai_models().await?)?;
+        let mut models: Vec<String> = openai_response
+            .data
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        models = filter_models(models);
+        sort_models(&mut models);
+        openai_models = deduplicate_models(models);
+    }
+
+    // Combine: Anthropic first, then OpenAI
+    let mut all_models = Vec::new();
+    all_models.extend(anthropic_models);
+    all_models.extend(openai_models);
 
     if all_models.is_empty() {
         return Err("No models available".into());
     }
-
-    sort_models(&mut all_models);
-    let all_models = deduplicate_models(all_models);
 
     Ok(all_models)
 }

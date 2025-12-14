@@ -151,14 +151,33 @@ impl ConfigTC {
 }
 
 pub fn config_interview(config: &mut ConfigTC) {
-    println!("\nAvailable models:");
-    for (i, model) in config.all_models.iter().enumerate() {
-        println!("{}) {}", i + 1, model);
+    let mut current_provider: Option<&str> = None;
+    let mut display_number = 1;
+
+    for model in &config.all_models {
+        // Determine provider
+        let provider = if model.to_lowercase().contains("claude") {
+            "Anthropic"
+        } else {
+            "OpenAI"
+        };
+
+        // Print provider header if changed
+        if current_provider != Some(provider) {
+            if current_provider.is_some() {
+                println!(); // Add spacing between providers
+            }
+            println!("{} Models:", provider);
+            current_provider = Some(provider);
+        }
+
+        println!("{}) {}", display_number, model);
+        display_number += 1;
     }
 
     config.model = loop {
         let input =
-            read_user_input("Please select a model by typing its number:").unwrap_or_default();
+            read_user_input("\nPlease select a model by typing its number:").unwrap_or_default();
         if let Ok(num) = input.trim().parse::<usize>()
             && num > 0 && num <= config.all_models.len() {
                 break config.all_models[num - 1].clone();
