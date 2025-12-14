@@ -36,21 +36,19 @@ fn visit_files(
             let path = entry.path();
 
             if path.is_dir() {
-                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if excluded_dirs.contains(dir_name) {
+                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                    && excluded_dirs.contains(dir_name) {
                         continue;
                     }
-                }
                 visit_files(&path, extensions, excluded_dirs, results)?;
             } else if path.is_file() {
                 let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 if !filename.starts_with('.') {
                     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                    if extensions.is_empty() || extensions.contains(ext) {
-                        if let Ok(content) = fs::read_to_string(&path) {
+                    if (extensions.is_empty() || extensions.contains(ext))
+                        && let Ok(content) = fs::read_to_string(&path) {
                             results.push((path.display().to_string(), content));
                         }
-                    }
                 }
             }
         }
@@ -76,13 +74,11 @@ pub fn calculate_message_width(
 
 pub fn extract_message_text(response: &Response) -> Option<String> {
     for output in &response.output {
-        if output.type_field == "message" {
-            if let Some(content) = &output.content {
-                if let Some(first_content) = content.first() {
+        if output.type_field == "message"
+            && let Some(content) = &output.content
+                && let Some(first_content) = content.first() {
                     return Some(first_content.text.clone());
                 }
-            }
-        }
     }
     None
 }
@@ -110,11 +106,10 @@ pub fn select_model(all_models: &[String], prompt_message: &str) -> Result<Strin
 
     loop {
         let input = read_user_input("\nSelect a model by number: ")?;
-        if let Ok(num) = input.trim().parse::<usize>() {
-            if num > 0 && num <= all_models.len() {
+        if let Ok(num) = input.trim().parse::<usize>()
+            && num > 0 && num <= all_models.len() {
                 return Ok(all_models[num - 1].clone());
             }
-        }
         eprintln!("Invalid selection. Please try again.");
     }
 }

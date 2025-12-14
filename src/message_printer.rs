@@ -128,14 +128,13 @@ fn word_wrap(text: &str, width: usize, wrapper: String) -> String {
             }
 
             // Try to backtrack to the last space if we're mid-word
-            if end_pos < graphemes.len() && !graphemes[end_pos].trim().is_empty() {
-                if let Some(last_space) = graphemes[current_pos..end_pos]
+            if end_pos < graphemes.len() && !graphemes[end_pos].trim().is_empty()
+                && let Some(last_space) = graphemes[current_pos..end_pos]
                     .iter()
                     .rposition(|g| g.trim().is_empty())
                 {
                     end_pos = current_pos + last_space + 1;
                 }
-            }
 
             let line_content = graphemes[current_pos..end_pos].join("");
             let final_width: usize = line_content.graphemes(true).map(|g| g.width()).sum();

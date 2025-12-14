@@ -77,7 +77,7 @@ async fn actually_chat(
         let width = width.min(terminal_width);
 
         let line_len = line.chars().count();
-        let line_count = (line_len / width) + if line_len % width == 0 { 0 } else { 1 };
+        let line_count = (line_len / width) + if line_len.is_multiple_of(width) { 0 } else { 1 };
 
         // Clear previous lines
         for _ in 0..line_count {

@@ -168,11 +168,10 @@ pub fn config_interview(config: &mut ConfigTC) {
     config.model = loop {
         let input =
             read_user_input("Please select a model by typing its number:").unwrap_or_default();
-        if let Ok(num) = input.trim().parse::<usize>() {
-            if num > 0 && num <= config.all_models.len() {
+        if let Ok(num) = input.trim().parse::<usize>()
+            && num > 0 && num <= config.all_models.len() {
                 break config.all_models[num - 1].clone();
             }
-        }
         eprintln!("\nInvalid model selection. Please try again.");
     };
 
