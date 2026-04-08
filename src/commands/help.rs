@@ -1,7 +1,8 @@
 use crate::commands::{command_context::CommandContext, commands_registry::TC_COMMANDS};
 
 use crate::commands::command_tc::CommandResult;
-use crate::message_printer::{MessageType, print_message};
+use crate::conversation::Role;
+use crate::message_printer::print_message;
 use crate::tc_config::get_config;
 
 pub async fn help_command(_cc: Option<CommandContext>) -> CommandResult {
@@ -17,6 +18,6 @@ pub async fn help_command(_cc: Option<CommandContext>) -> CommandResult {
         }
     }
 
-    print_message(&output, MessageType::System, &get_config()?);
+    print_message(&output, Role::System, &get_config()?);
     Ok(())
 }

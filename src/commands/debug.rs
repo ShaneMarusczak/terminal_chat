@@ -8,10 +8,9 @@ pub async fn debug_command(cc: Option<CommandContext>) -> CommandResult {
         println!("\nCurrent model: {}", ctx.model);
         println!("\nCurrent context messages:\n");
         for msg in &ctx.input {
-            println!("{}:\n{}\n:::\n", msg.role, msg.content);
+            println!("[{}]:\n{}\n:::\n", msg.role.display_name(), msg.content);
         }
 
-        // Get the current config
         let config = get_config()?;
         print_config(&config);
         println!();

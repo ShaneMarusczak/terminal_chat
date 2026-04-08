@@ -1,12 +1,11 @@
 use crate::{
     messages::MESSAGES,
-    utils::{confirm_action, get_default_model, read_user_input, sequence_equals},
+    utils::{confirm_action, get_default_model, print_model_list, prompt_model_selection, read_user_input, sequence_equals},
 };
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
 use std::{env, error::Error, fs::File, path::PathBuf, sync::LazyLock};
 
-use crossterm::style::{Color, Stylize};
 use std::sync::RwLock;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -28,6 +27,9 @@ pub struct ConfigTC {
 
     #[serde(default = "default_theme")]
     pub theme: Theme,
+
+    #[serde(default)]
+    pub local_base_url: Option<String>,
 }
 
 pub(crate) static GLOBAL_CONFIG: LazyLock<RwLock<ConfigTC>> =
@@ -50,14 +52,13 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
     let openai_enabled = default_openai();
 
     if !anthropic_enabled && !openai_enabled {
-        eprintln!(
-            "\nError: No API keys detected.\n\
+        return Err(
+            "No API keys detected.\n\
             You must set at least one of the following environment variables:\n\
             - ANTHROPIC_API_KEY (for Claude models)\n\
-            - OPENAI_API_KEY (for GPT models)\n\n\
-            Exiting...\n"
+            - OPENAI_API_KEY (for GPT models)"
+                .into(),
         );
-        std::process::exit(1);
     }
 
     let all_models = crate::utils::get_all_model_names(anthropic_enabled, openai_enabled).await?;
@@ -95,6 +96,19 @@ pub async fn load_config() -> Result<ConfigTC, Box<dyn Error>> {
     let mut global = GLOBAL_CONFIG.write()?;
     *global = rv.clone();
     Ok(rv)
+}
+
+/// Lightweight config loader: reads JSON file and populates GLOBAL_CONFIG
+/// without network calls or API key checks. Used by CLI subcommands like `tc edit`.
+pub fn load_config_file() -> Result<ConfigTC, Box<dyn Error>> {
+    let config = if let Ok(file) = File::open(get_config_path()) {
+        serde_json::from_reader::<File, ConfigTC>(file).unwrap_or_else(|_| ConfigTC::default(vec![]))
+    } else {
+        ConfigTC::default(vec![])
+    };
+    let mut global = GLOBAL_CONFIG.write()?;
+    *global = config.clone();
+    Ok(config)
 }
 
 pub fn get_config() -> Result<ConfigTC, Box<dyn Error>> {
@@ -146,96 +160,27 @@ impl ConfigTC {
             anthropic_enabled,
             openai_enabled: default_openai(),
             theme: default_theme(),
+            local_base_url: None,
         }
     }
 }
 
 pub fn config_interview(config: &mut ConfigTC) {
-    let mut current_provider: Option<&str> = None;
-    let mut display_number = 1;
-
-    for model in &config.all_models {
-        // Determine provider
-        let provider = if model.to_lowercase().contains("claude") {
-            "Anthropic"
-        } else {
-            "OpenAI"
-        };
-
-        // Print provider header if changed
-        if current_provider != Some(provider) {
-            if current_provider.is_some() {
-                println!(); // Add spacing between providers
-            }
-            println!("{} Models:", provider);
-            current_provider = Some(provider);
-        }
-
-        println!("{}) {}", display_number, model);
-        display_number += 1;
-    }
-
-    config.model = loop {
-        let input =
-            read_user_input("\nPlease select a model by typing its number:").unwrap_or_default();
-        if let Ok(num) = input.trim().parse::<usize>()
-            && num > 0 && num <= config.all_models.len() {
-                break config.all_models[num - 1].clone();
-            }
-        eprintln!("\nInvalid model selection. Please try again.");
-    };
+    print_model_list(&config.all_models);
+    config.model = prompt_model_selection(&config.all_models).unwrap_or_else(|_| config.model.clone());
 
     if confirm_action("Write a custom developer message for the AI? (y/n)") {
         config.dev_message =
             read_user_input("Enter your custom message:").unwrap_or_else(|_| default_dev_message());
     }
 
-    set_custom_theme(config);
-}
-
-fn set_custom_theme(config: &mut ConfigTC) {
-    if confirm_action("Customize theme colors? (y/n)") {
-        println!("Available colors:");
-        for color in available_colors() {
-            println!("{}", color.with(parse_color(color)));
+    if confirm_action("Configure a local model endpoint? (y/n)") {
+        let url = read_user_input("Local endpoint URL (e.g. http://localhost:1234/v1): ")
+            .unwrap_or_default();
+        if !url.trim().is_empty() {
+            config.local_base_url = Some(url.trim().to_string());
+            println!("Local endpoint set. Use model name prefix 'local/' to route there.");
         }
-
-        config.theme = Theme {
-            system_color: read_valid_color("Enter system message color:"),
-            user_color: read_valid_color("Enter user message color:"),
-            assistant_color: read_valid_color("Enter assistant message color:"),
-        };
-    }
-}
-
-fn parse_color(color_name: &str) -> Color {
-    match color_name.to_lowercase().as_str() {
-        "red" => Color::Red,
-        "green" => Color::Green,
-        "yellow" => Color::Yellow,
-        "blue" => Color::Blue,
-        "magenta" => Color::Magenta,
-        "cyan" => Color::Cyan,
-        "white" => Color::White,
-        "black" => Color::Black,
-        "dark_grey" => Color::DarkGrey,
-        "light_grey" => Color::Grey, // Also known as Light Grey
-        "dark_red" => Color::DarkRed,
-        "dark_green" => Color::DarkGreen,
-        "dark_yellow" => Color::DarkYellow,
-        "dark_blue" => Color::DarkBlue,
-        "dark_magenta" => Color::DarkMagenta,
-        "dark_cyan" => Color::DarkCyan,
-        _ => Color::Reset,
-    }
-}
-fn read_valid_color(prompt: &str) -> String {
-    loop {
-        let input = read_user_input(prompt).unwrap_or_default();
-        if is_valid_color(&input) {
-            return input;
-        }
-        eprintln!("Invalid color. Please try again.");
     }
 }
 
@@ -282,27 +227,3 @@ fn default_theme() -> Theme {
     }
 }
 
-fn is_valid_color(input: &str) -> bool {
-    available_colors().contains(&input.to_lowercase().as_str())
-}
-
-fn available_colors() -> Vec<&'static str> {
-    vec![
-        "red",
-        "green",
-        "yellow",
-        "blue",
-        "magenta",
-        "cyan",
-        "white",
-        "black",
-        "dark_grey",
-        "light_grey",
-        "dark_red",
-        "dark_green",
-        "dark_yellow",
-        "dark_blue",
-        "dark_magenta",
-        "dark_cyan",
-    ]
-}

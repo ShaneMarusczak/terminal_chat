@@ -3,24 +3,23 @@ use linefeed::{Interface, ReadResult};
 use crate::{
     chat_client::{get_anthropic_models, get_openai_models},
     commands::change_model::ModelsResponse,
-    conversation::Response,
+    conversation::Provider,
 };
-use serde::Deserialize;
+use std::collections::{HashMap, HashSet};
+use std::error::Error;
 use std::fs;
 use std::path::Path;
-use std::{collections::HashSet, error::Error};
 
-pub(crate) fn walk_directory(
+pub fn walk_directory(
     path: &str,
     extensions: &HashSet<&str>,
     excluded_dirs: &HashSet<&str>,
 ) -> std::io::Result<Vec<(String, String)>> {
     let mut results = Vec::new();
-
-    if Path::new(path).is_dir() {
-        visit_files(Path::new(path), extensions, excluded_dirs, &mut results)?;
+    let root = Path::new(path);
+    if root.is_dir() {
+        visit_files(root, extensions, excluded_dirs, &mut results)?;
     }
-
     Ok(results)
 }
 
@@ -30,57 +29,25 @@ fn visit_files(
     excluded_dirs: &HashSet<&str>,
     results: &mut Vec<(String, String)>,
 ) -> std::io::Result<()> {
-    if path.is_dir() {
-        for entry in fs::read_dir(path)? {
-            let entry = entry?;
-            let path = entry.path();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+        let name = entry_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
-            if path.is_dir() {
-                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
-                    && excluded_dirs.contains(dir_name) {
-                        continue;
-                    }
-                visit_files(&path, extensions, excluded_dirs, results)?;
-            } else if path.is_file() {
-                let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if !filename.starts_with('.') {
-                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                    if (extensions.is_empty() || extensions.contains(ext))
-                        && let Ok(content) = fs::read_to_string(&path) {
-                            results.push((path.display().to_string(), content));
-                        }
-                }
+        if entry_path.is_dir() {
+            if !excluded_dirs.contains(name) {
+                visit_files(&entry_path, extensions, excluded_dirs, results)?;
+            }
+        } else if entry_path.is_file() && !name.starts_with('.') {
+            let ext = entry_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if (extensions.is_empty() || extensions.contains(ext))
+                && let Ok(content) = fs::read_to_string(&entry_path)
+            {
+                results.push((entry_path.display().to_string(), content));
             }
         }
     }
     Ok(())
-}
-
-pub fn calculate_message_width(
-    message_text: &str,
-    max_chat_width: usize,
-    message_width_percent: usize,
-) -> (usize, usize) {
-    let terminal_width = termsize::get().map(|size| size.cols as usize).unwrap_or(80);
-    let max_width = terminal_width.min(max_chat_width) * message_width_percent / 100;
-
-    let lines: Vec<&str> = message_text.lines().collect();
-    if lines.len() == 1 {
-        ((lines[0].len() + 4).min(max_width), terminal_width) // Add 4 for padding
-    } else {
-        (max_width, terminal_width)
-    }
-}
-
-pub fn extract_message_text(response: &Response) -> Option<String> {
-    for output in &response.output {
-        if output.type_field == "message"
-            && let Some(content) = &output.content
-                && let Some(first_content) = content.first() {
-                    return Some(first_content.text.clone());
-                }
-    }
-    None
 }
 
 pub fn read_user_input(prompt: &str) -> Result<String, Box<dyn Error>> {
@@ -98,276 +65,208 @@ pub fn confirm_action(prompt: &str) -> bool {
     response.is_ok_and(|c| c.eq_ignore_ascii_case("y"))
 }
 
-pub fn select_model(all_models: &[String], prompt_message: &str) -> Result<String, Box<dyn Error>> {
-    println!("\n{}", prompt_message);
-
-    let mut current_provider: Option<&str> = None;
-    let mut display_number = 1;
-
-    for model in all_models {
-        // Determine provider
-        let provider = if model.to_lowercase().contains("claude") {
-            "Anthropic"
-        } else {
-            "OpenAI"
-        };
-
-        // Print provider header if changed
-        if current_provider != Some(provider) {
-            if current_provider.is_some() {
-                println!(); // Add spacing between providers
+/// Print a numbered, provider-grouped model list.
+pub fn print_model_list(models: &[String]) {
+    let mut current: Option<Provider> = None;
+    for (index, model) in models.iter().enumerate() {
+        let provider = Provider::from_model_name(model);
+        if Some(provider) != current {
+            if current.is_some() {
+                println!();
             }
-            println!("{} Models:", provider);
-            current_provider = Some(provider);
+            println!("{} Models:", provider_label(provider));
+            current = Some(provider);
         }
-
-        println!("{}) {}", display_number, model);
-        display_number += 1;
+        println!("{}) {}", index + 1, model);
     }
+}
 
+fn provider_label(p: Provider) -> &'static str {
+    match p {
+        Provider::Anthropic => "Anthropic",
+        Provider::OpenAI => "OpenAI",
+        Provider::Local => "Local",
+    }
+}
+
+/// Prompt the user to pick a model by number. Returns the selected model name.
+pub fn prompt_model_selection(models: &[String]) -> Result<String, Box<dyn Error>> {
     loop {
         let input = read_user_input("\nSelect a model by number: ")?;
         if let Ok(num) = input.trim().parse::<usize>()
-            && num > 0 && num <= all_models.len() {
-                return Ok(all_models[num - 1].clone());
-            }
+            && (1..=models.len()).contains(&num)
+        {
+            return Ok(models[num - 1].clone());
+        }
         eprintln!("Invalid selection. Please try again.");
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIModel {
-    id: String,
+pub fn select_model(all_models: &[String], prompt_message: &str) -> Result<String, Box<dyn Error>> {
+    println!("\n{}", prompt_message);
+    print_model_list(all_models);
+    prompt_model_selection(all_models)
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIModelsResponse {
-    data: Vec<OpenAIModel>,
-}
+// Substring/prefix tables for `filter_models`. Kept here so additions are
+// trivial: drop a string in the matching slice.
+const EXCLUDED_PREFIXES: &[&str] = &[
+    "ada", "babbage", "curie", "davinci", "text-", "code-", "gpt-3",
+];
 
-/// Filters out unwanted models from the list
-fn filter_models(models: Vec<String>) -> Vec<String> {
+const EXCLUDED_SUBSTRINGS: &[&str] = &[
+    "instruct",
+    "transcribe",
+    "audio",
+    "whisper",
+    "tts",
+    "sora",
+    "omni",
+    "realtime",
+    "codex",
+    "dall",
+    "preview",
+    "nano",
+    "turbo",
+    "latest",
+    "search-api",
+    "deep-research",
+    "image",
+    "mini",
+    "pro",
+];
+
+/// Drop fine-tuned models, deprecated OpenAI families, and specialized
+/// (non-chat) models like audio/image/realtime variants.
+pub fn filter_models(models: Vec<String>) -> Vec<String> {
     models
         .into_iter()
         .filter(|m| {
-            let m_lower = m.to_lowercase();
-
-            // Exclude fine-tuned models (contain :)
             if m.contains(':') {
                 return false;
             }
-
-            // Exclude old/deprecated OpenAI models
-            if m_lower.starts_with("ada")
-                || m_lower.starts_with("babbage")
-                || m_lower.starts_with("curie")
-                || m_lower.starts_with("davinci")
-                || m_lower.starts_with("text-")
-                || m_lower.starts_with("code-")
-                || m_lower.starts_with("gpt-3")
-                || m_lower.contains("instruct")
-            {
-                return false;
-            }
-
-            // Exclude specialized models not for general chat
-            if m_lower.contains("transcribe")
-                || m_lower.contains("audio")
-                || m_lower.contains("whisper")
-                || m_lower.contains("tts")
-                || m_lower.contains("sora")
-                || m_lower.contains("omni")
-                || m_lower.contains("realtime")
-                || m_lower.contains("codex")
-                || m_lower.contains("dall")
-                || m_lower.contains("preview")
-                || m_lower.contains("nano")
-                || m_lower.contains("turbo")
-                || m_lower.contains("latest")
-                || m_lower.contains("search-api")
-                || m_lower.contains("deep-research")
-                || m_lower.contains("image")
-                || m_lower.contains("mini")
-                || m_lower.contains("pro")
-            {
-                return false;
-            }
-
-            true
+            let lower = m.to_lowercase();
+            !EXCLUDED_PREFIXES.iter().any(|p| lower.starts_with(p))
+                && !EXCLUDED_SUBSTRINGS.iter().any(|s| lower.contains(s))
         })
         .collect()
 }
 
-/// Extracts the base model name without date suffix
-fn get_base_model_name(model: &str) -> &str {
-    // For models like "gpt-4o-2024-11-20" or "claude-3-5-sonnet-20241022"
-    // Extract the base name by removing the date suffix
-
-    // Find the last date-like pattern (YYYY-MM-DD or YYYYMMDD)
-    let parts: Vec<&str> = model.rsplitn(2, '-').collect();
-    if parts.len() == 2 {
-        let potential_date = parts[0];
-        // Check if it looks like a date (starts with 20 and has 8 or 10 chars with digits/hyphens)
-        if potential_date.starts_with("20")
-            && potential_date.len() >= 8
-            && potential_date.chars().all(|c| c.is_ascii_digit() || c == '-') {
-            return parts[1];
-        }
+/// Splits a model name like "claude-3-5-sonnet-20241022" into
+/// `("claude-3-5-sonnet", "20241022")`. Returns `None` for dateless names.
+fn split_date_suffix(model: &str) -> Option<(&str, &str)> {
+    let (base, suffix) = model.rsplit_once('-')?;
+    let looks_like_date = suffix.starts_with("20")
+        && suffix.len() >= 8
+        && suffix.chars().all(|c| c.is_ascii_digit() || c == '-');
+    if looks_like_date {
+        Some((base, suffix))
+    } else {
+        None
     }
-
-    model
 }
 
-/// Checks if a model has a date suffix
-fn has_date_suffix(model: &str) -> bool {
-    let parts: Vec<&str> = model.rsplitn(2, '-').collect();
-    if parts.len() == 2 {
-        let potential_date = parts[0];
-        return potential_date.starts_with("20")
-            && potential_date.len() >= 8
-            && potential_date.chars().all(|c| c.is_ascii_digit() || c == '-');
-    }
-    false
+/// Returns the base model name (the part before any trailing date suffix).
+pub fn get_base_model_name(model: &str) -> &str {
+    split_date_suffix(model).map(|(base, _)| base).unwrap_or(model)
 }
 
-/// Deduplicates models, preferring dateless versions over dated ones
-fn deduplicate_models(models: Vec<String>) -> Vec<String> {
-    use std::collections::HashMap;
+/// True if the model name ends in a date suffix.
+pub fn has_date_suffix(model: &str) -> bool {
+    split_date_suffix(model).is_some()
+}
 
-    let mut base_to_models: HashMap<String, Vec<String>> = HashMap::new();
-
-    // Group models by base name
+/// Group models by base name and pick one per group: a dateless version if
+/// present, otherwise the first (newest) dated version after sorting.
+pub fn deduplicate_models(models: Vec<String>) -> Vec<String> {
+    let mut by_base: HashMap<String, Vec<String>> = HashMap::new();
     for model in models {
         let base = get_base_model_name(&model).to_string();
-        base_to_models.entry(base).or_default().push(model);
+        by_base.entry(base).or_default().push(model);
     }
 
-    // For each base, prefer dateless version, otherwise newest dated version
-    let mut result = Vec::new();
-    for (_base, versions) in base_to_models {
-        // Find dateless version
-        if let Some(dateless) = versions.iter().find(|m| !has_date_suffix(m)) {
-            result.push(dateless.clone());
-        } else {
-            // All have dates, use the first one (newest due to sorting)
-            if let Some(newest) = versions.first() {
-                result.push(newest.clone());
-            }
-        }
-    }
-
-    result
+    by_base
+        .into_values()
+        .filter_map(|versions| {
+            versions
+                .iter()
+                .find(|m| !has_date_suffix(m))
+                .or_else(|| versions.first())
+                .cloned()
+        })
+        .collect()
 }
 
-/// Sorts models with preferred models first
+/// Sort by family preference: Sonnet > GPT-4o > GPT-4 > Opus > alphabetical
+/// (descending so newer dates float to the top).
 fn sort_models(models: &mut [String]) {
-    models.sort_by(|a, b| {
-        let a_lower = a.to_lowercase();
-        let b_lower = b.to_lowercase();
-
-        // Prioritize Claude Sonnet models
-        let a_sonnet = a_lower.contains("sonnet");
-        let b_sonnet = b_lower.contains("sonnet");
-        if a_sonnet != b_sonnet {
-            return b_sonnet.cmp(&a_sonnet);
+    fn rank(name: &str) -> u8 {
+        let lower = name.to_lowercase();
+        if lower.contains("sonnet") {
+            0
+        } else if lower.starts_with("gpt-4o") {
+            1
+        } else if lower.starts_with("gpt-4") {
+            2
+        } else if lower.contains("opus") {
+            3
+        } else {
+            4
         }
+    }
 
-        // Then GPT-4o models
-        let a_gpt4o = a_lower.starts_with("gpt-4o");
-        let b_gpt4o = b_lower.starts_with("gpt-4o");
-        if a_gpt4o != b_gpt4o {
-            return b_gpt4o.cmp(&a_gpt4o);
-        }
-
-        // Then other GPT-4 models
-        let a_gpt4 = a_lower.starts_with("gpt-4");
-        let b_gpt4 = b_lower.starts_with("gpt-4");
-        if a_gpt4 != b_gpt4 {
-            return b_gpt4.cmp(&a_gpt4);
-        }
-
-        // Then Claude Opus
-        let a_opus = a_lower.contains("opus");
-        let b_opus = b_lower.contains("opus");
-        if a_opus != b_opus {
-            return b_opus.cmp(&a_opus);
-        }
-
-        // Finally, sort alphabetically (reverse to get newer dates first)
-        b.cmp(a)
-    });
+    models.sort_by(|a, b| rank(a).cmp(&rank(b)).then_with(|| b.cmp(a)));
 }
 
-/// Selects the best default model based on available models
-fn select_default_model(models: &[String], anthropic_enabled: bool) -> String {
-    // If Anthropic is enabled, prefer newest Sonnet
+pub fn get_default_model(models: &[String], anthropic_enabled: bool) -> String {
     if anthropic_enabled
-        && let Some(sonnet) = models.iter().find(|m| m.to_lowercase().contains("sonnet")) {
-            return sonnet.clone();
-        }
+        && let Some(sonnet) = models.iter().find(|m| m.to_lowercase().contains("sonnet"))
+    {
+        return sonnet.clone();
+    }
 
-    // Otherwise, prefer newest GPT base model
     if let Some(gpt) = models.iter().find(|m| {
-        let m_lower = m.to_lowercase();
-        m_lower.starts_with("gpt") && !m.contains(':')
+        let lower = m.to_lowercase();
+        lower.starts_with("gpt") && !m.contains(':')
     }) {
         return gpt.clone();
     }
 
-    // Fallback to first model in list
-    models.first().unwrap_or(&"default_model_name".to_string()).clone()
+    models
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "default_model_name".to_string())
+}
+
+/// Parse a `/v1/models` JSON response, then filter, sort, and dedupe.
+fn process_models(json: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let response: ModelsResponse = serde_json::from_str(json)?;
+    let ids: Vec<String> = response.data.into_iter().map(|m| m.id).collect();
+    let mut filtered = filter_models(ids);
+    sort_models(&mut filtered);
+    Ok(deduplicate_models(filtered))
 }
 
 pub async fn get_all_model_names(
     anthropic_enabled: bool,
     openai_enabled: bool,
 ) -> Result<Vec<String>, Box<dyn Error>> {
-    let mut anthropic_models = Vec::new();
-    let mut openai_models = Vec::new();
+    let mut all_models = Vec::new();
 
     if anthropic_enabled {
-        let anthropic_response: ModelsResponse =
-            serde_json::from_str(&get_anthropic_models().await?)?;
-        let mut models: Vec<String> = anthropic_response
-            .data
-            .into_iter()
-            .map(|m| m.id)
-            .collect();
-        models = filter_models(models);
-        sort_models(&mut models);
-        anthropic_models = deduplicate_models(models);
+        all_models.extend(process_models(&get_anthropic_models().await?)?);
     }
-
     if openai_enabled {
-        let openai_response: OpenAIModelsResponse =
-            serde_json::from_str(&get_openai_models().await?)?;
-        let mut models: Vec<String> = openai_response
-            .data
-            .into_iter()
-            .map(|m| m.id)
-            .collect();
-        models = filter_models(models);
-        sort_models(&mut models);
-        openai_models = deduplicate_models(models);
+        all_models.extend(process_models(&get_openai_models().await?)?);
     }
-
-    // Combine: Anthropic first, then OpenAI
-    let mut all_models = Vec::new();
-    all_models.extend(anthropic_models);
-    all_models.extend(openai_models);
 
     if all_models.is_empty() {
         return Err("No models available".into());
     }
-
     Ok(all_models)
 }
 
-pub fn get_default_model(all_models: &[String], anthropic_enabled: bool) -> String {
-    select_default_model(all_models, anthropic_enabled)
-}
-
-pub(crate) fn sequence_equals(slice1: &[String], slice2: &[String]) -> bool {
+pub fn sequence_equals(slice1: &[String], slice2: &[String]) -> bool {
     if slice1.len() != slice2.len() {
         return false;
     }

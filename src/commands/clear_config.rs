@@ -2,7 +2,6 @@ use crate::commands::command_context::CommandContext;
 use crate::commands::command_tc::CommandResult;
 use crate::tc_config::get_config_path;
 use crate::utils::confirm_action;
-use std::process::Command;
 
 pub async fn dc(cc: Option<CommandContext>) -> CommandResult {
     if cc.is_some() {
@@ -15,7 +14,7 @@ pub async fn dc(cc: Option<CommandContext>) -> CommandResult {
         }
 
         if confirm_action(&format!("Are you sure you want to delete {}?", path_str)) {
-            Command::new("rm").arg(&path).status()?;
+            std::fs::remove_file(&path)?;
             println!("\nDeleted {}\n", path_str);
         } else {
             println!("\nDid not delete: {}\n", path_str);

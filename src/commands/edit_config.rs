@@ -1,5 +1,6 @@
 use crate::commands::command_context::CommandContext;
 use crate::commands::command_tc::CommandResult;
+use crate::conversation::Role;
 use crate::tc_config::{GLOBAL_CONFIG, config_interview, get_config, write_config};
 
 pub async fn ec_command(cc: Option<CommandContext>) -> CommandResult {
@@ -15,7 +16,7 @@ pub async fn ec_command(cc: Option<CommandContext>) -> CommandResult {
         }
         if !ctx.input.is_empty() {
             for message in &mut ctx.input {
-                if message.role == "developer" {
+                if message.role == Role::Developer {
                     message.content = config.dev_message.clone();
                     break;
                 }

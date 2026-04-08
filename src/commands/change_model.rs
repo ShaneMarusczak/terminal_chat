@@ -1,6 +1,7 @@
 use crate::commands::command_context::CommandContext;
 use crate::commands::command_tc::CommandResult;
-use crate::message_printer::{MessageType, print_message};
+use crate::conversation::Role;
+use crate::message_printer::print_message;
 use crate::tc_config::{GLOBAL_CONFIG, get_config, write_config};
 use crate::utils::read_user_input;
 use serde::Deserialize;
@@ -24,7 +25,7 @@ pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
 
         print_message(
             &format!("Current model: {}\n", config.model),
-            MessageType::System,
+            Role::System,
             &config,
         );
 
@@ -34,7 +35,7 @@ pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
             output.push_str(&format!("{}) {}\n", i + 1, model));
         }
 
-        print_message(&output, MessageType::System, &config);
+        print_message(&output, Role::System, &config);
 
         let model_choice = read_user_input("\nPlease select a model by entering its number:");
 
@@ -48,7 +49,7 @@ pub async fn change_model_command(cc: Option<CommandContext>) -> CommandResult {
                 write_config(&get_config()?, false)?;
                 print_message(
                     &format!("Model changed to: {}", ctx.model),
-                    MessageType::System,
+                    Role::System,
                     &config,
                 );
             }

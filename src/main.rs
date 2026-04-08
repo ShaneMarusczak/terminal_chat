@@ -1,18 +1,20 @@
 use std::error::Error;
+use std::io::IsTerminal;
 
-// Import from the library
 use tc::*;
 
-// Only declare the run module which is binary-specific
 mod run;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
+    let has_args = args.len() > 1;
+    let stdin_is_tty = std::io::stdin().is_terminal();
 
-    match args.len() {
-        1 => run::as_repl().await?,
-        _ => run::as_cli_tool(&args[1..]).await?,
+    if !has_args && stdin_is_tty {
+        run::as_repl().await?;
+    } else {
+        run::as_cli_tool(&args[1..]).await?;
     }
 
     Ok(())
