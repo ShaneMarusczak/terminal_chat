@@ -184,3 +184,20 @@ pub async fn get_openai_models() -> Result<String, Box<dyn Error>> {
     Ok(body)
 }
 
+/// Fetch the model list from a local OpenAI-compatible endpoint (e.g. oMLX, LM Studio).
+/// `base_url` should be the `/v1` root, e.g. `http://localhost:8000/v1`.
+pub async fn get_local_models(base_url: &str) -> Result<String, Box<dyn Error>> {
+    let url = format!("{}/models", base_url.trim_end_matches('/'));
+    let response = HTTP_CLIENT
+        .get(&url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await?;
+    let status = response.status();
+    let body = response.text().await?;
+    if !status.is_success() {
+        return Err(format!("Local models API returned {}: {}", status, body).into());
+    }
+    Ok(body)
+}
+
