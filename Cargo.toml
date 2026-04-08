@@ -21,12 +21,8 @@ expect_used = "warn"
 arboard = { version = "3.6.1", default-features = false }
 crossterm = { version = "0.29.0" }
 linefeed = { version = "0.6.0", default-features = false }
-reqwest = { version = "0.12.25", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12.25", features = ["rustls-tls"], default-features = false }
 serde = { version = "1.0.228", features = ["derive"], default-features = false }
-serde_json = { version = "1.0.145", default-features = false }
-tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"], default-features = false }
-pulldown-cmark = { version = "0.13.0", default-features = false }
+serde_json = { version = "1.0.145", features = ["std"], default-features = false }
+tokio = { version = "1.48.0", features = ["macros", "rt", "sync"], default-features = false }
 dirs = { version = "6.0.0", default-features = false }
-termsize = { version = "0.1.9", default-features = false }
-unicode-width = "0.2.1"
-unicode-segmentation = "1.12.0"

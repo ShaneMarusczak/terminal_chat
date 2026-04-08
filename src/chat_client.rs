@@ -1,21 +1,15 @@
 use reqwest::Client;
 use serde_json::from_str;
-use std::{
-    env,
-    error::Error,
-    io::{Write, stdout},
-    sync::LazyLock,
-    time::Duration,
-};
+use std::{env, error::Error, sync::LazyLock, time::Duration};
 
 use crate::{
-    conversation::{AnthropicRequest, ConversationContext, OpenAIRequest, ResponsesRequest},
-    spinner::run_with_spinner,
+    conversation::{
+        AnthropicMessage, AnthropicRequest, ConversationContext, OpenAIRequest, Provider, ResponseC,
+    },
+    tc_config::ConfigTC,
 };
 
-const API_URL: &str = "https://api.openai.com/v1/responses";
 const API_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
-const API_IMG_URL: &str = "https://api.openai.com/v1/images/generations";
 const OPENAI_MODELS_URL: &str = "https://api.openai.com/v1/models";
 const ANTHROPIC_MODELS: &str = "https://api.anthropic.com/v1/models";
 const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
@@ -24,10 +18,141 @@ const ANTHROPIC_MESSAGES: &str = "https://api.anthropic.com/v1/messages";
 #[allow(clippy::expect_used)]
 static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
-        .timeout(Duration::from_secs(300)) // 5 minute timeout for long AI responses
+        .timeout(Duration::from_secs(300))
         .build()
         .expect("Failed to create HTTP client")
 });
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/// Send a chat message and return the assistant's reply as a string.
+/// Routes to the correct provider based on the model name in `context`.
+pub async fn chat(
+    context: &ConversationContext,
+    config: &ConfigTC,
+    max_tokens: Option<usize>,
+) -> Result<String, Box<dyn Error>> {
+    let provider = Provider::from_model_name(&context.model);
+
+    match provider {
+        Provider::Anthropic => chat_anthropic(context, max_tokens).await,
+        Provider::OpenAI => {
+            let api_key = env::var("OPENAI_API_KEY")
+                .map_err(|_| "OPENAI_API_KEY environment variable not set")?;
+            chat_openai_compat(
+                context,
+                API_CHAT_URL,
+                &api_key,
+                &context.model,
+                max_tokens,
+            )
+            .await
+        }
+        Provider::Local => {
+            let base_url = env::var("TC_LOCAL_URL")
+                .ok()
+                .or_else(|| config.local_base_url.clone())
+                .unwrap_or_else(|| "http://localhost:1234/v1".to_string());
+            let url = format!(
+                "{}/chat/completions",
+                base_url.trim_end_matches('/')
+            );
+            let model = context
+                .model
+                .strip_prefix("local/")
+                .unwrap_or(&context.model);
+            chat_openai_compat(context, &url, "local-no-key-required", model, max_tokens).await
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+async fn chat_anthropic(
+    context: &ConversationContext,
+    max_tokens: Option<usize>,
+) -> Result<String, Box<dyn Error>> {
+    let url = env::var("ANTHROPIC_BASE_URL")
+        .map(|base| {
+            format!(
+                "{}/messages",
+                base.trim_end_matches('/')
+            )
+        })
+        .unwrap_or_else(|_| ANTHROPIC_MESSAGES.to_string());
+
+    let api_key =
+        env::var("ANTHROPIC_API_KEY").map_err(|_| "ANTHROPIC_API_KEY environment variable not set")?;
+
+    let request = AnthropicRequest::from_context(context, max_tokens.unwrap_or(4096));
+    let request_json = serde_json::to_string(&request)?;
+
+    let response = HTTP_CLIENT
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .header("x-api-key", &api_key)
+        .header("anthropic-version", "2023-06-01")
+        .body(request_json)
+        .send()
+        .await?;
+    let status = response.status();
+    let response_text = response.text().await?;
+
+    if !status.is_success() {
+        return Err(format!("Anthropic API returned {}: {}", status, response_text).into());
+    }
+
+    let reply: AnthropicMessage = from_str(&response_text)
+        .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
+
+    reply
+        .content
+        .first()
+        .map(|c| c.text.clone())
+        .ok_or_else(|| "No content in response".into())
+}
+
+async fn chat_openai_compat(
+    context: &ConversationContext,
+    url: &str,
+    api_key: &str,
+    model: &str,
+    max_tokens: Option<usize>,
+) -> Result<String, Box<dyn Error>> {
+    let request = OpenAIRequest::new(model, context, max_tokens);
+    let request_json = serde_json::to_string(&request)?;
+
+    let http_response = HTTP_CLIENT
+        .post(url)
+        .bearer_auth(api_key)
+        .header("Content-Type", "application/json")
+        .body(request_json)
+        .send()
+        .await?;
+    let status = http_response.status();
+    let response_text = http_response.text().await?;
+
+    if !status.is_success() {
+        return Err(format!("API returned {}: {}", status, response_text).into());
+    }
+
+    let response: ResponseC = from_str(&response_text)
+        .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
+
+    response
+        .choices
+        .first()
+        .map(|c| c.message.content.clone())
+        .ok_or_else(|| "No content in response".into())
+}
+
+// ---------------------------------------------------------------------------
+// Model listing (unchanged)
+// ---------------------------------------------------------------------------
 
 pub async fn get_anthropic_models() -> Result<String, Box<dyn Error>> {
     let response = HTTP_CLIENT
@@ -35,10 +160,13 @@ pub async fn get_anthropic_models() -> Result<String, Box<dyn Error>> {
         .header("x-api-key", env::var("ANTHROPIC_API_KEY")?)
         .header("anthropic-version", "2023-06-01")
         .send()
-        .await?
-        .text()
         .await?;
-    Ok(response)
+    let status = response.status();
+    let body = response.text().await?;
+    if !status.is_success() {
+        return Err(format!("Anthropic models API returned {}: {}", status, body).into());
+    }
+    Ok(body)
 }
 
 pub async fn get_openai_models() -> Result<String, Box<dyn Error>> {
@@ -47,113 +175,29 @@ pub async fn get_openai_models() -> Result<String, Box<dyn Error>> {
         .get(OPENAI_MODELS_URL)
         .bearer_auth(&api_key)
         .send()
-        .await?
-        .text()
         .await?;
-    Ok(response)
+    let status = response.status();
+    let body = response.text().await?;
+    if !status.is_success() {
+        return Err(format!("OpenAI models API returned {}: {}", status, body).into());
+    }
+    Ok(body)
 }
 
-pub async fn anthropic_chat<T>(context: &ConversationContext) -> Result<T, Box<dyn Error>>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let anthropic_request = AnthropicRequest::from_context(context, 2048);
-    let request_json = serde_json::to_string(&anthropic_request)?;
-    let api_key = env::var("ANTHROPIC_API_KEY")?;
-
-    let response_text = run_with_spinner(async {
-        HTTP_CLIENT
-            .post(ANTHROPIC_MESSAGES)
-            .header("Content-Type", "application/json")
-            .header("x-api-key", api_key)
-            .header("anthropic-version", "2023-06-01")
-            .body(request_json)
-            .send()
-            .await?
-            .text()
-            .await
-    })
-    .await?;
-
-    print!("\r                \r");
-    stdout().flush().ok();
-
-    let resp: T = from_str(&response_text)
-        .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
-    Ok(resp)
+/// Fetch the model list from a local OpenAI-compatible endpoint (e.g. oMLX, LM Studio).
+/// `base_url` should be the `/v1` root, e.g. `http://localhost:8000/v1`.
+pub async fn get_local_models(base_url: &str) -> Result<String, Box<dyn Error>> {
+    let url = format!("{}/models", base_url.trim_end_matches('/'));
+    let response = HTTP_CLIENT
+        .get(&url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await?;
+    let status = response.status();
+    let body = response.text().await?;
+    if !status.is_success() {
+        return Err(format!("Local models API returned {}: {}", status, body).into());
+    }
+    Ok(body)
 }
 
-pub async fn send_request<T>(
-    url_flag: &str,
-    context: &ConversationContext,
-) -> Result<T, Box<dyn Error>>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let api_key = env::var("OPENAI_API_KEY")
-        .map_err(|_| "OPENAI_API_KEY environment variable not set")?;
-
-    let (request_json, url) = match url_flag {
-        "chat" => {
-            let openai_request = OpenAIRequest::from_context(context);
-            (serde_json::to_string(&openai_request)?, API_CHAT_URL)
-        }
-        _ => {
-            let responses_request = ResponsesRequest::from_context(context);
-            (serde_json::to_string(&responses_request)?, API_URL)
-        }
-    };
-
-    let response_text = run_with_spinner(async {
-        HTTP_CLIENT
-            .post(url)
-            .bearer_auth(&api_key)
-            .header("Content-Type", "application/json")
-            .body(request_json)
-            .send()
-            .await?
-            .text()
-            .await
-    })
-    .await?;
-
-    print!("\r                \r");
-    stdout().flush().ok();
-
-    let resp: T = from_str(&response_text)
-        .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
-
-    Ok(resp)
-}
-
-pub async fn send_image_request<F, T>(request: F) -> Result<T, Box<dyn Error>>
-where
-    F: serde::Serialize,
-    T: serde::de::DeserializeOwned,
-{
-    let api_key = env::var("OPENAI_API_KEY")
-        .map_err(|_| "OPENAI_API_KEY environment variable not set")?;
-
-    let request_json = serde_json::to_string(&request)?;
-
-    let response_text = run_with_spinner(async {
-        HTTP_CLIENT
-            .post(API_IMG_URL)
-            .bearer_auth(&api_key)
-            .header("Content-Type", "application/json")
-            .body(request_json)
-            .send()
-            .await?
-            .text()
-            .await
-    })
-    .await?;
-
-    print!("\r                \r");
-    stdout().flush().ok();
-
-    let resp: T = from_str(&response_text)
-        .map_err(|e| format!("Failed to parse response: {}\n{}", e, response_text))?;
-
-    Ok(resp)
-}

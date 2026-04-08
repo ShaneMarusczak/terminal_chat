@@ -4,13 +4,19 @@ use serde::{Deserialize, Serialize};
 pub enum Provider {
     Anthropic,
     OpenAI,
+    Local,
 }
 
 impl Provider {
-    /// Determines the provider based on the model name
+    /// Determines the provider based on the model name.
+    /// `local/` prefix routes to the local endpoint.
+    /// Names containing `claude` route to Anthropic.
+    /// Everything else routes to OpenAI.
     pub fn from_model_name(model: &str) -> Self {
         let model_lower = model.to_lowercase();
-        if model_lower.contains("claude") {
+        if model_lower.starts_with("local/") {
+            Provider::Local
+        } else if model_lower.contains("claude") {
             Provider::Anthropic
         } else {
             Provider::OpenAI
@@ -18,9 +24,32 @@ impl Provider {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    Developer,
+    System,
+    User,
+    Assistant,
+}
+
+impl Role {
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Role::User => "You",
+            Role::Assistant => "AI",
+            Role::Developer | Role::System => "System",
+        }
+    }
+
+    pub fn is_visible(self) -> bool {
+        matches!(self, Role::User | Role::Assistant)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
-    pub role: String,
+    pub role: Role,
     pub content: String,
 }
 
@@ -32,38 +61,45 @@ pub struct ConversationContext {
     pub yank_target: Option<String>,
 }
 
-#[derive(Serialize, Debug)]
-pub struct OpenAIRequest {
-    pub model: String,
-    #[serde(rename = "messages")]
-    pub messages: Vec<Message>,
-}
-
-impl OpenAIRequest {
-    pub fn from_context(ctx: &ConversationContext) -> Self {
+impl ConversationContext {
+    pub fn new(model: &str) -> Self {
         Self {
-            model: ctx.model.clone(),
-            messages: ctx
-                .input
-                .iter()
-                .filter(|m| m.role != "developer")
-                .cloned()
-                .collect(),
+            model: model.into(),
+            input: Vec::new(),
+            yank_target: None,
         }
     }
 }
 
 #[derive(Serialize, Debug)]
-pub struct ResponsesRequest {
+pub struct OpenAIRequest {
     pub model: String,
-    pub input: Vec<Message>,
+    pub messages: Vec<Message>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<usize>,
 }
 
-impl ResponsesRequest {
-    pub fn from_context(ctx: &ConversationContext) -> Self {
+impl OpenAIRequest {
+    /// Build an OpenAI-compatible request. Maps Developer → System role
+    /// so the system prompt reaches the model.
+    pub fn new(model: &str, ctx: &ConversationContext, max_tokens: Option<usize>) -> Self {
         Self {
-            model: ctx.model.clone(),
-            input: ctx.input.clone(),
+            model: model.to_string(),
+            messages: ctx
+                .input
+                .iter()
+                .map(|m| {
+                    if m.role == Role::Developer {
+                        Message {
+                            role: Role::System,
+                            content: m.content.clone(),
+                        }
+                    } else {
+                        m.clone()
+                    }
+                })
+                .collect(),
+            max_tokens,
         }
     }
 }
@@ -91,7 +127,7 @@ impl AnthropicRequest {
         let system_content = ctx
             .input
             .iter()
-            .find(|m| m.role == "developer")
+            .find(|m| m.role == Role::Developer)
             .map(|m| m.content.clone())
             .unwrap_or_default();
         Self {
@@ -101,26 +137,11 @@ impl AnthropicRequest {
             messages: ctx
                 .input
                 .iter()
-                .filter(|m| m.role != "developer")
+                .filter(|m| m.role != Role::Developer)
                 .cloned()
                 .collect(),
         }
     }
-}
-
-impl ConversationContext {
-    pub fn new(model: &str) -> Self {
-        Self {
-            model: model.into(),
-            input: Vec::new(),
-            yank_target: None,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Response {
-    pub output: Vec<Output>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -131,22 +152,4 @@ pub struct ResponseC {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Choice {
     pub message: Message,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Output {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub id: String,
-    pub status: Option<String>,
-    pub role: Option<String>,
-    pub content: Option<Vec<OutputContent>>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct OutputContent {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub text: String,
-    pub annotations: Vec<serde_json::Value>,
 }

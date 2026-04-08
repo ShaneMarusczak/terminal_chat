@@ -1,7 +1,8 @@
 use crate::{
     commands::command_context::CommandContext,
     commands::command_tc::CommandResult,
-    message_printer::{MessageType, print_message},
+    conversation::Role,
+    message_printer::print_message,
     tc_config::get_config,
 };
 
@@ -11,7 +12,7 @@ pub async fn search_command(cc: Option<CommandContext>) -> CommandResult {
         let config = get_config()?;
 
         if cc.args.is_empty() {
-            print_message("Usage: :search <term>", MessageType::System, &config);
+            print_message("Usage: :search <term>", Role::System, &config);
             return Ok(());
         }
 
@@ -23,30 +24,23 @@ pub async fn search_command(cc: Option<CommandContext>) -> CommandResult {
         println!("----------------------------------------");
 
         for (idx, message) in ctx.input.iter().enumerate() {
-            if message.role == "developer" {
-                continue; // Skip system messages
+            if !message.role.is_visible() {
+                continue;
             }
 
             if message.content.to_lowercase().contains(&search_lower) {
                 found_count += 1;
-                let role_display = match message.role.as_str() {
-                    "user" => "You",
-                    "assistant" => "AI",
-                    _ => &message.role,
-                };
 
-                // Show message number, role, and a snippet
-                println!("\n[{}] {}:", idx, role_display);
+                println!("\n[{}] {}:", idx, message.role.display_name());
 
-                // Find the line containing the search term and show context
                 for line in message.content.lines() {
                     if line.to_lowercase().contains(&search_lower) {
                         let trimmed = line.trim();
                         if trimmed.len() > 100 {
-                            // Show snippet with ellipsis
                             if let Some(pos) = trimmed.to_lowercase().find(&search_lower) {
                                 let start = pos.saturating_sub(40);
-                                let end = (pos + search_lower.len() + 40).min(trimmed.len());
+                                let end =
+                                    (pos + search_lower.len() + 40).min(trimmed.len());
                                 let snippet = &trimmed[start..end];
                                 println!("  ...{}...", snippet);
                             }
@@ -60,7 +54,7 @@ pub async fn search_command(cc: Option<CommandContext>) -> CommandResult {
 
         println!("\n----------------------------------------");
         let summary = format!("Found {} match(es)", found_count);
-        print_message(&summary, MessageType::System, &config);
+        print_message(&summary, Role::System, &config);
     }
     Ok(())
 }

@@ -4,9 +4,8 @@ use crate::commands::{
     change_model::change_model_command, clear::clear_command, clear_config::dc,
     command_tc::CommandTC, debug::debug_command, document::document_command,
     edit_config::ec_command, fork::fork_command, gf::gf_command, help::help_command,
-    image::image_command, load_conversation::lc_command, quit::quit_command,
-    readme::readme_command, save_conversation::sc_command, search::search_command,
-    sh, show::show_command, yank::yank_command,
+    load_conversation::lc_command, readme::readme_command, save_conversation::sc_command,
+    search::search_command, sh, show::show_command, yank::yank_command,
 };
 
 macro_rules! register_command {
@@ -51,13 +50,6 @@ pub static TC_COMMANDS: LazyLock<HashMap<&str, CommandTC>> = LazyLock::new(|| {
     register_command!("gf", "Adds file contents to the context.", gf_command, r);
     register_command!("readme", "Generates a README file.", readme_command, r);
     register_command!("doc", "Generates documentation.", document_command, r);
-    register_command!("quit", "Quits this program. Also 'q'.", quit_command, r);
-    register_command!(
-        "image",
-        "Generates an image and returns its URL.",
-        image_command,
-        r
-    );
     register_command!(
         "sh",
         "Executes a program with arguments. Usage: sh <program> [args...]",

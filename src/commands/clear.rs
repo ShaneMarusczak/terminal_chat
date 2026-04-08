@@ -1,6 +1,7 @@
 use crate::{
     commands::command_context::CommandContext,
-    message_printer::{MessageType, print_message},
+    conversation::Role,
+    message_printer::print_message,
     tc_config::get_config,
 };
 use std::process::Command;
@@ -17,7 +18,7 @@ pub async fn clear_command(cc: Option<CommandContext>) -> CommandResult {
 
         Command::new("clear").status()?;
 
-        print_message("Conversation cleared", MessageType::System, &get_config()?);
+        print_message("Conversation cleared", Role::System, &get_config()?);
     }
     Ok(())
 }
